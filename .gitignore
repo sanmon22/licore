@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+server/*.db
+server/*.db-journal
+server/*.db-wal
+server/*.db-shm
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.Rhistory
+graphify-out/
+
+# Local specifications
+TECHNICAL_SPECIFICATION.md

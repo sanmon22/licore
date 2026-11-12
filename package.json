@@ -1,0 +1,13 @@
+{
+  "name": "licores-crm-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for Liquor Distributor CRM",
+  "scripts": {
+    "server:dev": "npm --prefix server run dev",
+    "server:build": "npm --prefix server run build",
+    "server:seed": "npm --prefix server run db:seed",
+    "client:dev": "npm --prefix client run dev",
+    "client:build": "npm --prefix client run build"
+  }
+}
