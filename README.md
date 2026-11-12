@@ -1,16 +1,16 @@
-# 🍷 Distribuidora de Licores — Plataforma E-Commerce B2B & B2C
+# Distribuidora de Licores — Plataforma E-Commerce B2B & B2C
 
 MVP completo para una distribuidora de licores con flujo de compra tradicional de autoservicio (Storefront), cálculo dinámico de precios escalonados por volumen y tipo de cliente, gestión de múltiples sedes de entrega, descuento atómico de inventario en bodega y panel de control administrativo.
 
 ---
 
-## 🏗️ Arquitectura y Tecnologías
+## Arquitectura y Tecnologías
 
 El proyecto sigue una **Modular Clean Architecture (Vertical Slice Monolith)** en un **Monorepo**:
 
 * **Backend (`/server`):**
-  * **Runtime:** Node.js (v22.5+ o v24) + Express en TypeScript.
-  * **Persistencia:** SQLite nativo de Node.js (`node:sqlite` / `DatabaseSync`) con WAL mode y claves foráneas activas. ¡Cero dependencias binarias de C++ ni necesidad de Visual Studio Build Tools!
+  * **Runtime:** Node.js 26.13.1 (LTS) + Express en TypeScript.
+  * **Persistencia:** SQLite nativo de Node.js (`node:sqlite` / `DatabaseSync`) con WAL mode y claves foráneas activas. Cero dependencias binarias de C++ ni necesidad de Visual Studio Build Tools.
   * **ORM:** **Drizzle ORM** (`drizzle-orm/node-sqlite`).
   * **Módulos:**
     * `auth`: Registro, login con JWT y contraseñas hasheadas (`bcryptjs`).
@@ -24,19 +24,14 @@ El proyecto sigue una **Modular Clean Architecture (Vertical Slice Monolith)** e
 
 ---
 
-## 🚀 Puesta en Marcha
+## Puesta en Marcha
 
 ### 1. Limpiar e Instalar Dependencias del Backend
 
-Dado que se removió la dependencia nativa `better-sqlite3` en favor del SQLite nativo de Node 24 (`node:sqlite`), asegúrate de limpiar cualquier carpeta previa e instalar limpiamente:
+Dado que se utiliza el SQLite nativo de Node.js (`node:sqlite`), la instalación es directa y ligera:
 
 ```bash
 cd C:\_code\licores-crm\server
-# Si existe una carpeta node_modules dañada, elimínala:
-rm -rf node_modules package-lock.json   # En bash o git bash
-# o en PowerShell:
-# Remove-Item -Recurse -Force node_modules, package-lock.json
-
 npm install
 ```
 
@@ -59,7 +54,7 @@ npm run dev
 
 ---
 
-## 🔑 Credenciales Demo para Pruebas
+## Credenciales Demo para Pruebas
 
 En la pantalla de inicio de sesión (`/login`) encontrarás botones de **Acceso Rápido con 1 clic**:
 
