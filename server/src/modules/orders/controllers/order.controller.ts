@@ -4,6 +4,7 @@ import {
   checkoutSchema,
   calculateCartSchema,
   updateOrderStatusSchema,
+  rescheduleExpressOrderSchema,
 } from "../domain/order.types.js";
 import { AuthenticatedRequest } from "../../../middlewares/auth.middleware.js";
 
@@ -80,6 +81,20 @@ export class OrderController {
       res.json(allOrders);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
+    }
+  }
+
+  async rescheduleExpress(req: AuthenticatedRequest, res: Response) {
+    try {
+      const id = parseInt(req.params.id as string, 10);
+      const parsed = rescheduleExpressOrderSchema.parse(req.body);
+      const updated = await service.rescheduleExpressOrder(id, parsed.reason);
+      res.json(updated);
+    } catch (err: any) {
+      if (err.message?.includes("not found")) {
+        return res.status(404).json({ error: err.message });
+      }
+      res.status(400).json({ error: err.message });
     }
   }
 }

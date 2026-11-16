@@ -6,12 +6,14 @@ import {
   productPrices,
   branches,
   customers,
+  users,
   Product,
   ProductPrice,
   Order,
   OrderItem,
   Branch,
   Customer,
+  User,
 } from "../../../db/schema.js";
 import { eq, inArray, desc } from "drizzle-orm";
 import { CheckoutInput, CalculateCartInput } from "../domain/order.types.js";
@@ -24,9 +26,13 @@ import {
   validatePaymentMethodActive,
 } from "../domain/order.rules.js";
 import { SystemConfigService } from "../../system-config/services/system-config.service.js";
+import { NotificationPort, consoleNotificationAdapter } from "../../notifications/index.js";
 
 export class OrderService {
-  private configService = new SystemConfigService();
+  constructor(
+    private configService: SystemConfigService = new SystemConfigService(),
+    private notificationPort: NotificationPort = consoleNotificationAdapter
+  ) {}
 
   async calculateCart(customerType: "RETAIL" | "INDUSTRIAL", input: CalculateCartInput) {
     const deliveryType = input.deliveryType || "STANDARD";
@@ -261,6 +267,86 @@ export class OrderService {
       .update(orders)
       .set({ status: "CANCELLED" })
       .where(eq(orders.id, orderId));
+
+    // Notify cancellation through seam
+    const [customer] = await db.select().from(customers).where(eq(customers.id, order.customerId));
+    let customerEmail = "cliente@licores.com";
+    if (customer) {
+      const [user] = await db.select().from(users).where(eq(users.id, customer.userId));
+      if (user?.email) {
+        customerEmail = user.email;
+      }
+    }
+    await this.notificationPort.notifyOrderCancelled({
+      customerEmail,
+      orderCode: order.code,
+      reason: "Cancelación de pedido y reintegro automático de stock",
+    });
+
+    return this.getOrderById(orderId);
+  }
+
+  async rescheduleExpressOrder(orderId: number, adminReason?: string) {
+    const order = (
+      await db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, orderId))
+    )[0];
+
+    if (!order) {
+      throw new Error(`Order #${orderId} not found`);
+    }
+
+    if (order.deliveryType !== "EXPRESS_EMERGENCY") {
+      throw new Error("Only orders with EXPRESS_EMERGENCY delivery type can be rescheduled under this protocol");
+    }
+
+    if (order.status !== "PENDING") {
+      throw new Error(`Cannot reschedule order in status '${order.status}'. Only PENDING orders can be rescheduled.`);
+    }
+
+    if (order.notes?.includes("[REPROGRAMADO PRIORITARIO]")) {
+      throw new Error("This express order has already been rescheduled");
+    }
+
+    const discountCop = await this.configService.getNumber(
+      "logistics_express_reschedule_discount_cop",
+      10000
+    );
+
+    const newShippingFee = Math.max(0, order.shippingFee - discountCop);
+    const newTotal = Number(Math.max(0, order.total - discountCop).toFixed(2));
+    const rescheduleNote = `[REPROGRAMADO PRIORITARIO] Reprogramado para entrega prioritaria mañana a primera hora por saturación de flota. Descuento aplicado: -$${discountCop} COP.${adminReason ? ` Motivo admin: ${adminReason}` : ""}`;
+    const updatedNotes = order.notes ? `${order.notes} | ${rescheduleNote}` : rescheduleNote;
+
+    await db
+      .update(orders)
+      .set({
+        shippingFee: newShippingFee,
+        total: newTotal,
+        notes: updatedNotes,
+      })
+      .where(eq(orders.id, orderId));
+
+    // Resolve customer email for notification dispatch
+    const [customer] = await db.select().from(customers).where(eq(customers.id, order.customerId));
+    let customerEmail = "cliente@licores.com";
+    if (customer) {
+      const [user] = await db.select().from(users).where(eq(users.id, customer.userId));
+      if (user?.email) {
+        customerEmail = user.email;
+      }
+    }
+
+    await this.notificationPort.notifyExpressRescheduled({
+      customerEmail,
+      orderCode: order.code,
+      discountCop,
+      newShippingFee,
+      newTotal,
+      reason: adminReason || "Saturación de flota nocturna",
+    });
 
     return this.getOrderById(orderId);
   }

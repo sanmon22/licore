@@ -27,3 +27,9 @@ orderRouter.get("/", authMiddleware, requireRoles("ADMIN", "SUPERVISOR"), (req, 
 orderRouter.patch("/:id/status", authMiddleware, requireRoles("ADMIN", "SUPERVISOR"), (req, res) =>
   controller.updateStatus(req, res)
 );
+orderRouter.post(
+  "/:id/reschedule-express",
+  authMiddleware,
+  requireRoles("ADMIN", "SUPERVISOR"),
+  (req, res) => controller.rescheduleExpress(req, res)
+);

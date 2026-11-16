@@ -31,6 +31,11 @@ export const updateOrderStatusSchema = z.object({
   status: z.enum(["PENDING", "CONFIRMED", "DISPATCHED", "DELIVERED", "CANCELLED"]),
 });
 
+export const rescheduleExpressOrderSchema = z.object({
+  reason: z.string().optional(),
+});
+
 export type CheckoutInput = z.infer<typeof checkoutSchema>;
 export type CalculateCartInput = z.infer<typeof calculateCartSchema>;
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
+export type RescheduleExpressOrderInput = z.infer<typeof rescheduleExpressOrderSchema>;
