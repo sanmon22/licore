@@ -5,6 +5,7 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { catalogRouter } from "./modules/catalog/catalog.routes.js";
 import { customerRouter } from "./modules/customers/customer.routes.js";
 import { orderRouter } from "./modules/orders/order.routes.js";
+import { systemConfigRouter } from "./modules/system-config/system-config.routes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/catalog", catalogRouter);
 app.use("/api/v1/customers", customerRouter);
 app.use("/api/v1/orders", orderRouter);
+app.use("/api/v1/config", systemConfigRouter);
 
 // Global 404 handler
 app.use((_req, res) => {
