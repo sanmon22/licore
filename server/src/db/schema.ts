@@ -20,7 +20,7 @@ export const customers = sqliteTable("customers", {
   createdAt: text("created_at").notNull(),
 });
 
-export const branches = sqliteTable("branches", {
+export const deliveryPlaces = sqliteTable("delivery_places", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   customerId: integer("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -29,6 +29,9 @@ export const branches = sqliteTable("branches", {
   phone: text("phone"),
   createdAt: text("created_at").notNull(),
 });
+
+// Alias for intermediate compatibility
+export const branches = deliveryPlaces;
 
 export const products = sqliteTable("products", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -53,7 +56,7 @@ export const orders = sqliteTable("orders", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   code: text("code").notNull().unique(),
   customerId: integer("customer_id").notNull().references(() => customers.id),
-  branchId: integer("branch_id").notNull().references(() => branches.id),
+  branchId: integer("branch_id").notNull().references(() => deliveryPlaces.id),
   contactName: text("contact_name").notNull(),
   contactPhone: text("contact_phone").notNull(),
   status: text("status", { enum: ["PENDING", "CONFIRMED", "DISPATCHED", "DELIVERED", "CANCELLED"] }).notNull().default("PENDING"),
@@ -85,17 +88,20 @@ export const customersRelations = relations(customers, ({ one, many }) => ({
     fields: [customers.userId],
     references: [users.id],
   }),
-  branches: many(branches),
+  deliveryPlaces: many(deliveryPlaces),
+  branches: many(deliveryPlaces),
   orders: many(orders),
 }));
 
-export const branchesRelations = relations(branches, ({ one, many }) => ({
+export const deliveryPlacesRelations = relations(deliveryPlaces, ({ one, many }) => ({
   customer: one(customers, {
-    fields: [branches.customerId],
+    fields: [deliveryPlaces.customerId],
     references: [customers.id],
   }),
   orders: many(orders),
 }));
+
+export const branchesRelations = deliveryPlacesRelations;
 
 export const productsRelations = relations(products, ({ many }) => ({
   prices: many(productPrices),
@@ -114,9 +120,13 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.customerId],
     references: [customers.id],
   }),
-  branch: one(branches, {
+  deliveryPlace: one(deliveryPlaces, {
     fields: [orders.branchId],
-    references: [branches.id],
+    references: [deliveryPlaces.id],
+  }),
+  branch: one(deliveryPlaces, {
+    fields: [orders.branchId],
+    references: [deliveryPlaces.id],
   }),
   items: many(orderItems),
 }));
@@ -137,8 +147,10 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
-export type Branch = typeof branches.$inferSelect;
-export type NewBranch = typeof branches.$inferInsert;
+export type DeliveryPlace = typeof deliveryPlaces.$inferSelect;
+export type NewDeliveryPlace = typeof deliveryPlaces.$inferInsert;
+export type Branch = DeliveryPlace;
+export type NewBranch = NewDeliveryPlace;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type ProductPrice = typeof productPrices.$inferSelect;
