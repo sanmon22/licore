@@ -9,6 +9,7 @@ export const checkoutSchema = z
   .object({
     deliveryPlaceId: z.number().int().positive().optional(),
     branchId: z.number().int().positive().optional(), // Backward compatibility alias
+    deliveryType: z.enum(["STANDARD", "EXPRESS_EMERGENCY"]).default("STANDARD"),
     contactName: z.string().min(2),
     contactPhone: z.string().min(5),
     paymentMethod: z
@@ -22,6 +23,7 @@ export const checkoutSchema = z
   });
 
 export const calculateCartSchema = z.object({
+  deliveryType: z.enum(["STANDARD", "EXPRESS_EMERGENCY"]).default("STANDARD"),
   items: z.array(orderItemInputSchema).min(1),
 });
 

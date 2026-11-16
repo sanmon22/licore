@@ -15,10 +15,33 @@ import {
 } from "../../../db/schema.js";
 import { eq, inArray, desc } from "drizzle-orm";
 import { CheckoutInput, CalculateCartInput } from "../domain/order.types.js";
-import { resolveTieredUnitPrice } from "../domain/order.rules.js";
+import {
+  resolveTieredUnitPrice,
+  validateMinimumOrderQuantity,
+  calculateShippingFee,
+  generateOrderCode,
+} from "../domain/order.rules.js";
+import { SystemConfigService } from "../../system-config/services/system-config.service.js";
 
 export class OrderService {
+  private configService = new SystemConfigService();
+
   async calculateCart(customerType: "RETAIL" | "INDUSTRIAL", input: CalculateCartInput) {
+    const deliveryType = input.deliveryType || "STANDARD";
+    const totalCases = input.items.reduce((acc, item) => acc + item.casesQuantity, 0);
+
+    const minCasesStandard = await this.configService.getNumber("logistics_min_cases_standard", 3);
+    const minCasesExpress = await this.configService.getNumber("logistics_min_cases_express", 1);
+    const expressFeeCop = await this.configService.getNumber("logistics_express_fee_cop", 35000);
+    const expressEnabled = await this.configService.getBoolean("logistics_express_enabled", true);
+
+    if (deliveryType === "EXPRESS_EMERGENCY" && !expressEnabled) {
+      throw new Error("El servicio de entrega express nocturna se encuentra temporalmente inactivo");
+    }
+
+    validateMinimumOrderQuantity(totalCases, deliveryType, minCasesStandard, minCasesExpress);
+    const shippingFee = calculateShippingFee(deliveryType, expressFeeCop);
+
     const productIds = input.items.map((i) => i.productId);
     const dbProducts = await db.select().from(products).where(inArray(products.id, productIds));
     const dbPrices = await db.select().from(productPrices).where(inArray(productPrices.productId, productIds));
@@ -55,11 +78,30 @@ export class OrderService {
 
     return {
       items: calculatedItems,
-      grandTotal: Number(grandTotal.toFixed(2)),
+      subtotal: Number(grandTotal.toFixed(2)),
+      shippingFee,
+      totalCases,
+      deliveryType,
+      grandTotal: Number((grandTotal + shippingFee).toFixed(2)),
     };
   }
 
   async checkout(customerId: number, customerType: "RETAIL" | "INDUSTRIAL", input: CheckoutInput) {
+    const deliveryType = input.deliveryType || "STANDARD";
+    const totalCases = input.items.reduce((acc, item) => acc + item.casesQuantity, 0);
+
+    const minCasesStandard = await this.configService.getNumber("logistics_min_cases_standard", 3);
+    const minCasesExpress = await this.configService.getNumber("logistics_min_cases_express", 1);
+    const expressFeeCop = await this.configService.getNumber("logistics_express_fee_cop", 35000);
+    const expressEnabled = await this.configService.getBoolean("logistics_express_enabled", true);
+
+    if (deliveryType === "EXPRESS_EMERGENCY" && !expressEnabled) {
+      throw new Error("El servicio de entrega express nocturna se encuentra temporalmente inactivo");
+    }
+
+    validateMinimumOrderQuantity(totalCases, deliveryType, minCasesStandard, minCasesExpress);
+    const shippingFee = calculateShippingFee(deliveryType, expressFeeCop);
+
     // 1. Validate delivery place belongs to customer
     const deliveryPlaceId = input.deliveryPlaceId ?? input.branchId!;
     const branch = (
@@ -133,7 +175,7 @@ export class OrderService {
     }
 
     const now = new Date().toISOString();
-    const code = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(100 + Math.random() * 900)}`;
+    const code = generateOrderCode();
 
     // 3. Insert Order
     const [newOrder] = await db
@@ -146,9 +188,9 @@ export class OrderService {
         contactPhone: input.contactPhone,
         paymentMethod: input.paymentMethod,
         status: "PENDING",
-        deliveryType: "STANDARD",
-        shippingFee: 0,
-        total: Number(orderTotal.toFixed(2)),
+        deliveryType,
+        shippingFee,
+        total: Number((orderTotal + shippingFee).toFixed(2)),
         notes: input.notes || null,
         createdAt: now,
       })
