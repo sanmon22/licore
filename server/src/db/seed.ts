@@ -2,7 +2,7 @@ import { sqlite, db } from "./index.js";
 import {
   users,
   customers,
-  branches,
+  deliveryPlaces,
   products,
   productPrices,
 } from "./schema.js";
@@ -32,7 +32,7 @@ export async function seedDatabase() {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS branches (
+    CREATE TABLE IF NOT EXISTS delivery_places (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -65,7 +65,7 @@ export async function seedDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT NOT NULL UNIQUE,
       customer_id INTEGER NOT NULL REFERENCES customers(id),
-      branch_id INTEGER NOT NULL REFERENCES branches(id),
+      branch_id INTEGER NOT NULL REFERENCES delivery_places(id),
       contact_name TEXT NOT NULL,
       contact_phone TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'PENDING',
@@ -129,7 +129,7 @@ export async function seedDatabase() {
       createdAt: now,
     }).returning();
 
-    await db.insert(branches).values([
+    await db.insert(deliveryPlaces).values([
       {
         customerId: c1.id,
         name: "Sede Poblado",
@@ -166,7 +166,7 @@ export async function seedDatabase() {
       createdAt: now,
     }).returning();
 
-    await db.insert(branches).values({
+    await db.insert(deliveryPlaces).values({
       customerId: c2.id,
       name: "Sede Parque Lleras",
       address: "Calle 10 # 38-20",
@@ -193,7 +193,7 @@ export async function seedDatabase() {
       createdAt: now,
     }).returning();
 
-    await db.insert(branches).values({
+    await db.insert(deliveryPlaces).values({
       customerId: c3.id,
       name: "Punto de Venta Envigado",
       address: "Calle 37 Sur # 40-15",
