@@ -1,17 +1,22 @@
 import { db } from "../../../db/index.js";
-import { customers, branches, users, Customer, Branch, User } from "../../../db/schema.js";
+import { customers, deliveryPlaces, users, Customer, DeliveryPlace, User } from "../../../db/schema.js";
 import { eq } from "drizzle-orm";
-import { CreateBranchInput } from "../domain/customer.types.js";
+import { CreateDeliveryPlaceInput } from "../domain/customer.types.js";
 
 export class CustomerService {
-  async getBranches(customerId: number) {
-    return db.select().from(branches).where(eq(branches.customerId, customerId));
+  async getDeliveryPlaces(customerId: number) {
+    return db.select().from(deliveryPlaces).where(eq(deliveryPlaces.customerId, customerId));
   }
 
-  async addBranch(customerId: number, input: CreateBranchInput) {
+  // Alias for backward compatibility
+  async getBranches(customerId: number) {
+    return this.getDeliveryPlaces(customerId);
+  }
+
+  async addDeliveryPlace(customerId: number, input: CreateDeliveryPlaceInput) {
     const now = new Date().toISOString();
-    const [newBranch] = await db
-      .insert(branches)
+    const [newPlace] = await db
+      .insert(deliveryPlaces)
       .values({
         customerId,
         name: input.name,
@@ -22,23 +27,29 @@ export class CustomerService {
       })
       .returning();
 
-    return newBranch;
+    return newPlace;
+  }
+
+  // Alias for backward compatibility
+  async addBranch(customerId: number, input: CreateDeliveryPlaceInput) {
+    return this.addDeliveryPlace(customerId, input);
   }
 
   async getAllCustomers() {
     const allCustomers = await db.select().from(customers);
-    const allBranches = await db.select().from(branches);
+    const allDeliveryPlaces = await db.select().from(deliveryPlaces);
     const allUsers = await db.select().from(users);
 
     return allCustomers.map((cust: Customer) => {
       const user = allUsers.find((u: User) => u.id === cust.userId);
-      const custBranches = allBranches.filter((b: Branch) => b.customerId === cust.id);
+      const custDeliveryPlaces = allDeliveryPlaces.filter((d: DeliveryPlace) => d.customerId === cust.id);
 
       return {
         ...cust,
         userEmail: user?.email,
         userName: user?.name,
-        branches: custBranches,
+        deliveryPlaces: custDeliveryPlaces,
+        branches: custDeliveryPlaces,
       };
     });
   }

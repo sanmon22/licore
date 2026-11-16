@@ -6,8 +6,12 @@ import { requireRoles } from "../../middlewares/role.middleware.js";
 export const customerRouter = Router();
 const controller = new CustomerController();
 
-customerRouter.get("/branches", authMiddleware, (req, res) => controller.getMyBranches(req, res));
-customerRouter.post("/branches", authMiddleware, (req, res) => controller.addBranch(req, res));
+customerRouter.get("/delivery-places", authMiddleware, (req, res) => controller.getMyDeliveryPlaces(req, res));
+customerRouter.post("/delivery-places", authMiddleware, (req, res) => controller.addDeliveryPlace(req, res));
+
+// Backward compatibility routes
+customerRouter.get("/branches", authMiddleware, (req, res) => controller.getMyDeliveryPlaces(req, res));
+customerRouter.post("/branches", authMiddleware, (req, res) => controller.addDeliveryPlace(req, res));
 
 // Admin & Supervisor: view all registered business customers
 customerRouter.get("/", authMiddleware, requireRoles("ADMIN", "SUPERVISOR"), (req, res) =>
