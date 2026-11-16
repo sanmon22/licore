@@ -5,6 +5,7 @@ import {
   deliveryPlaces,
   products,
   productPrices,
+  systemConfig,
 } from "./schema.js";
 import bcrypt from "bcryptjs";
 
@@ -82,6 +83,15 @@ export async function seedDatabase() {
       cases_quantity INTEGER NOT NULL,
       unit_price REAL NOT NULL,
       subtotal REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS system_config (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT NOT NULL UNIQUE,
+      value TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'STRING',
+      description TEXT,
+      updated_at TEXT NOT NULL
     );
   `);
 
@@ -309,6 +319,79 @@ export async function seedDatabase() {
         });
       }
     }
+  }
+
+  // 3. Seed Initial System Configuration
+  const existingConfig = await db.select().from(systemConfig);
+  if (existingConfig.length === 0) {
+    console.log("  -> Seeding System Configuration parameters...");
+    const initialConfigs = [
+      {
+        key: "logistics_min_cases_standard",
+        value: "3",
+        type: "NUMBER" as const,
+        description: "Cajas mínimas para habilitar pedido con despacho estándar",
+        updatedAt: now,
+      },
+      {
+        key: "logistics_min_cases_express",
+        value: "1",
+        type: "NUMBER" as const,
+        description: "Cajas mínimas para pedidos nocturnos de emergencia",
+        updatedAt: now,
+      },
+      {
+        key: "logistics_express_fee_cop",
+        value: "35000",
+        type: "NUMBER" as const,
+        description: "Tarifa plana de envío express en COP",
+        updatedAt: now,
+      },
+      {
+        key: "logistics_express_reschedule_discount_cop",
+        value: "10000",
+        type: "NUMBER" as const,
+        description: "Descuento en COP aplicado al flete express al reprogramar como entrega prioritaria para el día siguiente",
+        updatedAt: now,
+      },
+      {
+        key: "billing_reservation_ttl_hours",
+        value: "24",
+        type: "NUMBER" as const,
+        description: "Horas máximas de reserva para pagos en transferencia bancaria",
+        updatedAt: now,
+      },
+      {
+        key: "logistics_express_enabled",
+        value: "true",
+        type: "BOOLEAN" as const,
+        description: "Interruptor maestro para activar o pausar el servicio express nocturno",
+        updatedAt: now,
+      },
+      {
+        key: "payment_cod_enabled",
+        value: "true",
+        type: "BOOLEAN" as const,
+        description: "Habilita o deshabilita el método de pago Contra Entrega",
+        updatedAt: now,
+      },
+      {
+        key: "payment_bank_transfer_enabled",
+        value: "true",
+        type: "BOOLEAN" as const,
+        description: "Habilita o deshabilita el método de pago Transferencia Bancaria",
+        updatedAt: now,
+      },
+      {
+        key: "payment_credit_card_enabled",
+        value: "true",
+        type: "BOOLEAN" as const,
+        description: "Habilita o deshabilita el método de pago Tarjeta de Crédito / Pasarela",
+        updatedAt: now,
+      },
+    ];
+
+    await db.insert(systemConfig).values(initialConfigs);
   }
 
   console.log("✅ Seeding completed successfully!");
