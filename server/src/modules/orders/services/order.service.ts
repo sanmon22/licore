@@ -20,6 +20,8 @@ import {
   validateMinimumOrderQuantity,
   calculateShippingFee,
   generateOrderCode,
+  getPaymentMethodConfigKey,
+  validatePaymentMethodActive,
 } from "../domain/order.rules.js";
 import { SystemConfigService } from "../../system-config/services/system-config.service.js";
 
@@ -101,6 +103,11 @@ export class OrderService {
 
     validateMinimumOrderQuantity(totalCases, deliveryType, minCasesStandard, minCasesExpress);
     const shippingFee = calculateShippingFee(deliveryType, expressFeeCop);
+
+    // Validate payment method active flag in SystemConfig
+    const paymentConfigKey = getPaymentMethodConfigKey(input.paymentMethod);
+    const isPaymentEnabled = await this.configService.getBoolean(paymentConfigKey, true);
+    validatePaymentMethodActive(input.paymentMethod, isPaymentEnabled);
 
     // 1. Validate delivery place belongs to customer
     const deliveryPlaceId = input.deliveryPlaceId ?? input.branchId!;

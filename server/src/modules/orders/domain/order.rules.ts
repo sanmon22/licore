@@ -85,3 +85,42 @@ export function generateOrderCode(date = new Date()): string {
   }
   return `ORD-${yy}${mm}-${random}`;
 }
+
+export type PaymentMethod = "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "CREDIT_CARD" | "CREDIT";
+
+/**
+ * Maps payment method to its corresponding SystemConfig boolean parameter key.
+ */
+export function getPaymentMethodConfigKey(paymentMethod: PaymentMethod): string {
+  switch (paymentMethod) {
+    case "CASH_ON_DELIVERY":
+      return "payment_cod_enabled";
+    case "BANK_TRANSFER":
+      return "payment_bank_transfer_enabled";
+    case "CREDIT_CARD":
+    case "CREDIT":
+      return "payment_credit_card_enabled";
+    default:
+      throw new Error(`Método de pago no reconocido: ${paymentMethod}`);
+  }
+}
+
+/**
+ * Validates whether the selected payment method is active in SystemConfig.
+ */
+export function validatePaymentMethodActive(
+  paymentMethod: PaymentMethod,
+  isEnabled: boolean
+): void {
+  if (!isEnabled) {
+    const names: Record<PaymentMethod, string> = {
+      CASH_ON_DELIVERY: "Contra Entrega (Efectivo/Datáfono)",
+      BANK_TRANSFER: "Transferencia Bancaria",
+      CREDIT_CARD: "Tarjeta de Crédito / Pasarela",
+      CREDIT: "Tarjeta de Crédito / Pasarela",
+    };
+    throw new Error(
+      `El método de pago '${names[paymentMethod] || paymentMethod}' se encuentra temporalmente inactivo.`
+    );
+  }
+}
