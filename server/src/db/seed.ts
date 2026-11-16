@@ -66,10 +66,12 @@ export async function seedDatabase() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT NOT NULL UNIQUE,
       customer_id INTEGER NOT NULL REFERENCES customers(id),
-      branch_id INTEGER NOT NULL REFERENCES delivery_places(id),
+      delivery_place_id INTEGER NOT NULL REFERENCES delivery_places(id),
       contact_name TEXT NOT NULL,
       contact_phone TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'PENDING',
+      delivery_type TEXT NOT NULL DEFAULT 'STANDARD',
+      shipping_fee REAL NOT NULL DEFAULT 0,
       payment_method TEXT NOT NULL DEFAULT 'CASH_ON_DELIVERY',
       total REAL NOT NULL DEFAULT 0,
       notes TEXT,
@@ -94,6 +96,18 @@ export async function seedDatabase() {
       updated_at TEXT NOT NULL
     );
   `);
+
+  // Ensure schema compatibility for orders columns in existing databases
+  const orderColumns = (sqlite.prepare("PRAGMA table_info(orders)").all() as Array<{ name: string }>).map((c) => c.name);
+  if (orderColumns.includes("branch_id") && !orderColumns.includes("delivery_place_id")) {
+    sqlite.exec("ALTER TABLE orders RENAME COLUMN branch_id TO delivery_place_id;");
+  }
+  if (!orderColumns.includes("delivery_type")) {
+    sqlite.exec("ALTER TABLE orders ADD COLUMN delivery_type TEXT NOT NULL DEFAULT 'STANDARD';");
+  }
+  if (!orderColumns.includes("shipping_fee")) {
+    sqlite.exec("ALTER TABLE orders ADD COLUMN shipping_fee REAL NOT NULL DEFAULT 0;");
+  }
 
   const now = new Date().toISOString();
   const passwordHash = await bcrypt.hash("password123", 10);

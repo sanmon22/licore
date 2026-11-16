@@ -5,14 +5,21 @@ export const orderItemInputSchema = z.object({
   casesQuantity: z.number().int().positive(),
 });
 
-export const checkoutSchema = z.object({
-  branchId: z.number().int().positive(),
-  contactName: z.string().min(2),
-  contactPhone: z.string().min(5),
-  paymentMethod: z.enum(["CASH_ON_DELIVERY", "BANK_TRANSFER", "CREDIT"]).default("CASH_ON_DELIVERY"),
-  notes: z.string().optional(),
-  items: z.array(orderItemInputSchema).min(1),
-});
+export const checkoutSchema = z
+  .object({
+    deliveryPlaceId: z.number().int().positive().optional(),
+    branchId: z.number().int().positive().optional(), // Backward compatibility alias
+    contactName: z.string().min(2),
+    contactPhone: z.string().min(5),
+    paymentMethod: z
+      .enum(["CASH_ON_DELIVERY", "BANK_TRANSFER", "CREDIT_CARD", "CREDIT"])
+      .default("CASH_ON_DELIVERY"),
+    notes: z.string().optional(),
+    items: z.array(orderItemInputSchema).min(1),
+  })
+  .refine((data) => data.deliveryPlaceId !== undefined || data.branchId !== undefined, {
+    message: "deliveryPlaceId or branchId is required",
+  });
 
 export const calculateCartSchema = z.object({
   items: z.array(orderItemInputSchema).min(1),

@@ -60,12 +60,13 @@ export class OrderService {
   }
 
   async checkout(customerId: number, customerType: "RETAIL" | "INDUSTRIAL", input: CheckoutInput) {
-    // 1. Validate branch belongs to customer
+    // 1. Validate delivery place belongs to customer
+    const deliveryPlaceId = input.deliveryPlaceId ?? input.branchId!;
     const branch = (
       await db
         .select()
         .from(branches)
-        .where(eq(branches.id, input.branchId))
+        .where(eq(branches.id, deliveryPlaceId))
     )[0];
 
     if (!branch || branch.customerId !== customerId) {
@@ -140,11 +141,13 @@ export class OrderService {
       .values({
         code,
         customerId,
-        branchId: input.branchId,
+        deliveryPlaceId,
         contactName: input.contactName,
         contactPhone: input.contactPhone,
         paymentMethod: input.paymentMethod,
         status: "PENDING",
+        deliveryType: "STANDARD",
+        shippingFee: 0,
         total: Number(orderTotal.toFixed(2)),
         notes: input.notes || null,
         createdAt: now,
@@ -246,7 +249,7 @@ export class OrderService {
     const allProducts = await db.select().from(products);
 
     return customerOrders.map((ord: Order) => {
-      const branch = allBranches.find((b: Branch) => b.id === ord.branchId);
+      const branch = allBranches.find((b: Branch) => b.id === ord.deliveryPlaceId);
       const items = allItems
         .filter((i: OrderItem) => i.orderId === ord.id)
         .map((i: OrderItem) => {
@@ -276,7 +279,7 @@ export class OrderService {
 
     return allOrders.map((ord: Order) => {
       const customer = allCustomers.find((c: Customer) => c.id === ord.customerId);
-      const branch = allBranches.find((b: Branch) => b.id === ord.branchId);
+      const branch = allBranches.find((b: Branch) => b.id === ord.deliveryPlaceId);
       const items = allItems
         .filter((i: OrderItem) => i.orderId === ord.id)
         .map((i: OrderItem) => {
@@ -307,7 +310,7 @@ export class OrderService {
       await db.select().from(customers).where(eq(customers.id, order.customerId))
     )[0];
     const branch = (
-      await db.select().from(branches).where(eq(branches.id, order.branchId))
+      await db.select().from(branches).where(eq(branches.id, order.deliveryPlaceId))
     )[0];
     const items = await db
       .select()
