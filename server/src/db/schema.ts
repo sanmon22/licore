@@ -75,6 +75,15 @@ export const orderItems = sqliteTable("order_items", {
   subtotal: real("subtotal").notNull(),
 });
 
+export const systemConfig = sqliteTable("system_config", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  key: text("key").notNull().unique(),
+  value: text("value").notNull(),
+  type: text("type", { enum: ["NUMBER", "STRING", "BOOLEAN", "JSON"] }).notNull().default("STRING"),
+  description: text("description"),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one }) => ({
   customer: one(customers, {
@@ -159,3 +168,5 @@ export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type NewOrderItem = typeof orderItems.$inferInsert;
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export type NewSystemConfig = typeof systemConfig.$inferInsert;
