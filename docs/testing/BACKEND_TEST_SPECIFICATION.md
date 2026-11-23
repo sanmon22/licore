@@ -2,7 +2,7 @@
 ## FASES 1, 2 Y 3: DOMINIO PURO, INTEGRACIÓN DE SERVICIOS Y CONTRATOS API REST
 
 > **Estado:** Aprobado para Ejecución de Pruebas Automatizadas  
-> **Versión:** 2.0.0 (Master Unified Test Specification)  
+> **Versión:** 2.1.0 (Master Unified Exhaustive Test Specification)  
 > **Fecha de Actualización:** 23 de Noviembre de 2026  
 > **Módulos Bajo Prueba:**  
 > • **Fase 1 (Unit):** [`server/src/modules/orders/domain/order.rules.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/domain/order.rules.ts)  
@@ -11,7 +11,7 @@
 > **Suites de Prueba:**  
 > • Unit: [`server/tests/unit/order.rules.test.ts`](file:///C:/_code/licores-crm/server/tests/unit/order.rules.test.ts)  
 > • Integration: [`server/tests/integration/order.service.test.ts`](file:///C:/_code/licores-crm/server/tests/integration/order.service.test.ts)  
-> • API: [`server/tests/api/order.routes.test.ts`](file:///C:/_code/licores-crm/server/tests/api/order.routes.test.ts)  
+> • API: [`server/tests/api/order.api.test.ts`](file:///C:/_code/licores-crm/server/tests/api/order.api.test.ts)  
 > **Especificación Técnica Base:** [`TECHNICAL_SPECIFICATION.md`](file:///C:/_code/licores-crm/TECHNICAL_SPECIFICATION.md)  
 > **Glosario Ubicuo:** [`GLOSSARY.md`](file:///C:/_code/licores-crm/GLOSSARY.md)  
 
@@ -29,7 +29,7 @@ La arquitectura de `licores-crm` implementa una estrategia de pruebas por capas 
                    / \
                   /   \     FASE 3: Contratos API HTTP & Seguridad RBAC
                  / API \    - Supertest contra Express App & Routers
-                /───────\   - Middleware Auth (JWT) & Role Middleware (401/403/201)
+                /───────\   - Middleware Auth (JWT) & Role Middleware (401/403/201/200)
                /         \
               /  INTEGRA- \  FASE 2: Servicios de Negocio & Persistencia
              /    CIÓN     \ - Transacciones atómicas, descuento de inventario
@@ -46,12 +46,12 @@ La arquitectura de `licores-crm` implementa una estrategia de pruebas por capas 
 | :--- | :--- | :--- | :--- |
 | **Fase 1: Dominio Puro** | Lógica matemática, cálculo de fletes, resolución de precios por volumen, generación de códigos Crockford Base32. | **Cero I/O**. Objetos en memoria pura sin persistencia. | `server/tests/unit/order.rules.test.ts` |
 | **Fase 2: Integración** | Orquestación transaccional (`OrderService`, `SystemConfigService`), descuento/reintegro de stock en bodega, snapshots financieros, protocolo de reprogramación express y mock del seam de notificaciones. | Base de datos SQLite aislada (`server/data.test.db`) mediante `node:sqlite`. Seam de notificación mockeado. | `server/tests/integration/order.service.test.ts` |
-| **Fase 3: API & Seguridad** | Enrutadores Express, traducción HTTP (Zod schemas), control de acceso basado en roles (`CUSTOMER`, `SUPERVISOR`, `ADMIN`), tokens JWT (`authMiddleware`, `optionalAuthMiddleware`). | Servidor Express en memoria (Supertest), base de datos de test (`data.test.db`). | `server/tests/api/order.routes.test.ts` |
+| **Fase 3: API & Seguridad** | Enrutadores Express, traducción HTTP (Zod schemas), control de acceso basado en roles (`CUSTOMER`, `SUPERVISOR`, `ADMIN`), tokens JWT (`authMiddleware`, `optionalAuthMiddleware`). | Servidor Express en memoria (Supertest), base de datos de test (`data.test.db`). | `server/tests/api/order.api.test.ts` |
 
-### 1.3. Asignación de Responsabilidades: Escenarios Prioritarios vs. Complementarios
-Para asegurar una ejecución eficiente del plan de calidad:
-* **Agente 2 (Test Implementer):** Es responsable de implementar **2 escenarios prioritarios de muestra por fase** (6 escenarios en total), garantizando la infraestructura base, utilidades de prueba, mocks y ejecución 100% verde en Vitest.
-* **Usuario / Equipo de Desarrollo:** Cuenta con la especificación Gherkin exhaustiva de todos los **escenarios complementarios** formalizados en este documento para continuar extendiendo la suite a su propio ritmo.
+### 1.3. Asignación de Responsabilidades: Muestra Prioritaria (Agente 2) vs. Especificación Completa (Usuario)
+Para garantizar una ejecución eficiente y modular del plan de automatización:
+* **Agente 2 (Test Implementer):** Es responsable de codificar e implementar **2 escenarios prioritarios de muestra por fase** (6 escenarios en total), asegurando que la infraestructura, utilidades de prueba, mocks y fixtures queden completamente funcionales y con 100% de éxito en Vitest.
+* **Usuario / Equipo de Desarrollo:** Cuenta con la especificación exhaustiva, rigurosa y formalizada de **todos los escenarios complementarios** en este documento para extender la suite de pruebas a demanda con total coherencia arquitectónica.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -65,12 +65,12 @@ Para asegurar una ejecución eficiente del plan de calidad:
  • FASE 2 (Integration - OrderService & SystemConfigService):
    [AGENTE 2] SCN-PRIO-I1: Checkout Transaccional con Descuento Atómico de Stock e Inserción de Items.
    [AGENTE 2] SCN-PRIO-I2: Reprogramación Prioritaria Express con Descuento -$10.000 COP y Notificación.
-   [USUARIO]  SCN-INT-CHK-02..04, SCN-INT-CAN-01..02, SCN-INT-RES-02..04, SCN-INT-CRT-01..02, SCN-INT-CFG-01..03.
+   [USUARIO]  SCN-INT-CHK-02..05, SCN-INT-CAN-01..03, SCN-INT-RES-02..04, SCN-INT-CRT-01..03, SCN-INT-CFG-01..05.
 
  • FASE 3 (API HTTP & Seguridad RBAC):
    [AGENTE 2] SCN-PRIO-A1: Matriz de Autenticación y Autorización en POST /checkout (401, 403, 201).
-   [AGENTE 2] SCN-PRIO-A2: Control RBAC en POST /orders/:id/reschedule-express (403 CUSTOMER vs 200 ADMIN).
-   [USUARIO]  SCN-API-CRT-01..02, SCN-API-CHK-03..04, SCN-API-RES-03, SCN-API-CFG-01..04.
+   [AGENTE 2] SCN-PRIO-A2: Control RBAC en POST /orders/:id/reschedule-express (403 CUSTOMER vs 200 ADMIN/SUPERVISOR).
+   [USUARIO]  SCN-API-CRT-01..04, SCN-API-CHK-03..05, SCN-API-RES-03..05, SCN-API-CFG-01..05.
 ```
 
 ### 1.4. Estructura de Directorios para Pruebas (`server/tests/`)
@@ -95,7 +95,7 @@ server/
     ├── integration/                   ◄── FASE 2: Servicios & Persistencia data.test.db
     │   └── order.service.test.ts      ◄── Implementación Agente 2 (Muestra Prioritaria)
     ├── api/                           ◄── FASE 3: Endpoints HTTP & Guardrails RBAC
-    │   └── order.routes.test.ts       ◄── Implementación Agente 2 (Muestra Prioritaria)
+    │   └── order.api.test.ts       ◄── Implementación Agente 2 (Muestra Prioritaria)
     └── e2e/                           ◄── FASE 4: Flujos Transaccionales Completos (Futuro)
         └── checkout-flow.test.ts
 ```
@@ -231,175 +231,584 @@ El sistema impone cinco invariantes fundamentales que ninguna capa (dominio, ser
 
 ---
 
-## 5. Criterios de Aceptación en Formato Gherkin
+## 5. Criterios de Aceptación en Formato Gherkin (Exhaustivos)
 
 ### 5.1. FASE 1: Reglas de Dominio Puro (`server/tests/unit/order.rules.test.ts`)
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 1]
+#### Característica 1: Validación de Cantidad Mínima de Pedido (MOQ Dinámico)
 ```gherkin
-Característica: [PRIORITARIO-U1] Validación de Cantidad Mínima de Pedido (MOQ Dinámico)
+Característica: Validación de Cantidad Mínima de Pedido (MOQ)
   Como motor de reglas de checkout
-  Quiero validar el cumplimiento del pedido mínimo según la modalidad logística
-  Para optimizar los despachos y costos operativos
+  Quiero verificar que el pedido cumpla con el umbral mínimo de cajas según la modalidad
+  Para optimizar los costos de ruta y despacho
 
-  Escenario: Validación exitosa de pedido estándar con MOQ por defecto (3 cajas)
-    Dado que se solicita despacho "STANDARD" con 3 cajas
-    Cuando se valida la cantidad mínima de pedido
-    Entonces la validación debe completarse sin arrojar errores
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-U1 / SCN-MOQ-01: Pedido estándar cumple exactamente el MOQ por defecto
+    Dado que el cliente selecciona modalidad de despacho "STANDARD"
+    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
+    Cuando el cliente agrega un total de 3 cajas al pedido
+    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
 
-  Escenario: Rechazo de pedido estándar con menos de 3 cajas
-    Dado que se solicita despacho "STANDARD" con 2 cajas
-    Cuando se valida la cantidad mínima de pedido
-    Entonces debe lanzar un error indicando que se requieren al menos 3 cajas
+  Escenario: SCN-MOQ-02: Pedido estándar supera holgadamente el MOQ por defecto
+    Dado que el cliente selecciona modalidad de despacho "STANDARD"
+    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
+    Cuando el cliente agrega un total de 12 cajas al pedido
+    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
 
-  Escenario: Aprobación de pedido express nocturno con 1 caja
-    Dado que se solicita despacho "EXPRESS_EMERGENCY" con 1 caja
-    Cuando se valida la cantidad mínima de pedido
-    Entonces la validación debe completarse exitosamente
+  Escenario: SCN-MOQ-03: Pedido estándar no alcanza el MOQ por defecto
+    Dado que el cliente selecciona modalidad de despacho "STANDARD"
+    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
+    Cuando el cliente intenta enviar un pedido con 2 cajas
+    Entonces el sistema debe rechazar el pedido con el error:
+      """
+      Pedido mínimo no alcanzado: El despacho estándar requiere al menos 3 cajas (solicitadas: 2).
+      """
+
+  Escenario: SCN-MOQ-04: Pedido estándar con cero cajas
+    Dado que el cliente selecciona modalidad de despacho "STANDARD"
+    Cuando el cliente intenta enviar un pedido con 0 cajas
+    Entonces el sistema debe rechazar el pedido con el error:
+      """
+      Pedido mínimo no alcanzado: El despacho estándar requiere al menos 3 cajas (solicitadas: 0).
+      """
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-U1 / SCN-MOQ-05: Pedido express nocturno cumple el MOQ por defecto
+    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
+    Y los parámetros del sistema definen un pedido mínimo express de 1 caja
+    Cuando el cliente agrega 1 caja de emergencia al pedido
+    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
+
+  Escenario: SCN-MOQ-06: Pedido express nocturno con volumen mayor
+    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
+    Cuando el cliente agrega 4 cajas de emergencia al pedido
+    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
+
+  Escenario: SCN-MOQ-07: Pedido express nocturno con cero cajas
+    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
+    Y los parámetros del sistema definen un pedido mínimo express de 1 caja
+    Cuando el cliente intenta enviar un pedido con 0 cajas
+    Entonces el sistema debe rechazar el pedido con el error:
+      """
+      Pedido mínimo no alcanzado: El despacho express nocturno requiere al menos 1 caja (solicitadas: 0).
+      """
+
+  Escenario: SCN-MOQ-08: Parámetro dinámico de SystemConfig eleva el MOQ estándar a 5 cajas
+    Dado que el administrador configuró "logistics_min_cases_standard" en 5
+    Y el cliente selecciona modalidad "STANDARD"
+    Cuando el cliente agrega 4 cajas al pedido
+    Entonces el sistema debe rechazar el pedido indicando que se requieren 5 cajas
+    Pero si el cliente agrega 5 cajas la validación debe ser aprobada
+
+  Escenario: SCN-MOQ-09: Parámetro dinámico de SystemConfig eleva el MOQ express a 2 cajas
+    Dado que el administrador configuró "logistics_min_cases_express" en 2
+    Y el cliente selecciona modalidad "EXPRESS_EMERGENCY"
+    Cuando el cliente agrega 1 caja al pedido
+    Entonces el sistema debe rechazar el pedido indicando que se requieren 2 caja
+    Pero si el cliente agrega 2 cajas la validación debe ser aprobada
 ```
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 1]
+#### Característica 2: Cálculo de Fletes para Logística Dual
 ```gherkin
-Característica: [PRIORITARIO-U2] Resolución de Precios Unitarios Escalonados por Segmento
-  Como motor de tarifas de catálogo
-  Quiero resolver el precio unitario exacto por volumen y tipo de cliente
-  Para aplicar precios justos y proteger el margen mayorista
+Característica: Cálculo de Fletes para Logística Dual
+  Como motor de tarifación financiera
+  Quiero calcular el costo de envío exacto según la urgencia del despacho
+  Para cobrar el recargo operativo adecuado o bonificar el envío estándar
 
-  Escenario: Cliente INDUSTRIAL accede a tarifa con descuento al superar 5 cajas
-    Dado un producto con tarifas INDUSTRIAL: 1 caja a $130.000 COP y 5 cajas a $120.000 COP
-    Cuando un cliente "INDUSTRIAL" cotiza 6 cajas
-    Entonces el precio unitario resuelto debe ser $120.000 COP
+  Escenario: SCN-SHP-01: Flete gratuito para despacho estándar por defecto
+    Dado que el pedido tiene modalidad "STANDARD"
+    Cuando se calcula el costo de flete
+    Entonces el valor del flete debe ser exactamente 0 COP
+
+  Escenario: SCN-SHP-02: Flete estándar permanece en cero con tarifa express configurada
+    Dado que el pedido tiene modalidad "STANDARD"
+    Y la tarifa express configurada es de 45000 COP
+    Cuando se calcula el costo de flete
+    Entonces el valor del flete debe mantenerse en 0 COP
+
+  Escenario: SCN-SHP-03: Recargo fijo para despacho express nocturno por defecto
+    Dado que el pedido tiene modalidad "EXPRESS_EMERGENCY"
+    Cuando se calcula el costo de flete sin especificar recargo personalizado
+    Entonces el valor del flete retornado debe ser de 35000 COP
+
+  Escenario: SCN-SHP-04: Recargo dinámico para despacho express nocturno desde SystemConfig
+    Dado que el pedido tiene modalidad "EXPRESS_EMERGENCY"
+    Y el valor dinámico de "logistics_express_fee_cop" es 42000 COP
+    Cuando se calcula el costo de flete pasando 42000 COP
+    Entonces el valor del flete retornado debe ser de 42000 COP
+```
+
+#### Característica 3: Resolución de Precios Unitarios Escalonados (Tiered Pricing) y Aislamiento de Segmentos
+```gherkin
+Característica: Resolución de Precios Unitarios Escalonados por Volumen
+  Como motor de catálogo y fijación de precios
+  Quiero aplicar la tarifa por caja según el tipo de cliente y el volumen adquirido
+  Para recompensar a clientes mayoristas y mantener la integridad comercial
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-U2 / SCN-PRC-01: Cliente RETAIL comprando volumen bajo
+    Dado un producto con precio RETAIL de 150000 COP (minCases: 1)
+    Y precios INDUSTRIAL escalonados a menor costo
+    Cuando un cliente tipo "RETAIL" compra 1 caja
+    Entonces el precio unitario liquidado debe ser 150000 COP
+    Y el escalón aplicado debe ser minCases 1
+
+  Escenario: SCN-PRC-02: Cliente RETAIL comprando gran volumen no accede a tarifas INDUSTRIAL
+    Dado un producto con precio RETAIL de 150000 COP (minCases: 1)
+    Y un escalón INDUSTRIAL de 110000 COP para más de 10 cajas
+    Cuando un cliente tipo "RETAIL" compra 20 cajas
+    Entonces el precio unitario liquidado debe permanecer en 150000 COP
+    Y en ningún caso debe descender a 110000 COP
+
+  Escenario: SCN-PRC-03: Cliente INDUSTRIAL comprando en Escalón 1 (Volumen Base)
+    Dado los siguientes escalones para cliente INDUSTRIAL:
+      | minCases | unitPrice (COP) |
+      | 1        | 130000          |
+      | 5        | 120000          |
+      | 10       | 110000          |
+    Cuando un cliente tipo "INDUSTRIAL" compra 3 cajas
+    Entonces el precio unitario liquidado debe ser 130000 COP
+    Y el escalón aplicado debe ser minCases 1
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-U2 / SCN-PRC-04: Cliente INDUSTRIAL comprando en Escalón 2 (Umbral Intermedio)
+    Dado los mismos escalones para cliente INDUSTRIAL
+    Cuando un cliente tipo "INDUSTRIAL" compra exactamente 5 cajas
+    Entonces el precio unitario liquidado debe ser 120000 COP
     Y el escalón aplicado debe ser minCases 5
 
-  Escenario: Cliente RETAIL mantiene precio base sin importar el volumen
-    Dado un producto con tarifa RETAIL: 1 caja a $150.000 COP
-    Cuando un cliente "RETAIL" cotiza 15 cajas
-    Entonces el precio unitario resuelto debe mantenerse en $150.000 COP
+  Escenario: SCN-PRC-05: Cliente INDUSTRIAL comprando en Escalón 2 (Rango Intermedio)
+    Dado los mismos escalones para cliente INDUSTRIAL
+    Cuando un cliente tipo "INDUSTRIAL" compra 8 cajas
+    Entonces el precio unitario liquidado debe ser 120000 COP
+    Y el escalón aplicado debe ser minCases 5
+
+  Escenario: SCN-PRC-06: Cliente INDUSTRIAL comprando en Escalón 3 (Volumen Máximo)
+    Dado los mismos escalones para cliente INDUSTRIAL
+    Cuando un cliente tipo "INDUSTRIAL" compra 15 cajas
+    Entonces el precio unitario liquidado debe ser 110000 COP
+    Y el escalón aplicado debe ser minCases 10
+
+  Escenario: SCN-PRC-07: Intento de cotizar producto sin matriz de precios para el segmento
+    Dado un producto que únicamente cuenta con tarifas para clientes "RETAIL"
+    Cuando se solicita resolver el precio unitario para un cliente "INDUSTRIAL" con 2 cajas
+    Entonces el sistema debe fallar inmediatamente con el error:
+      """
+      No prices configured for customer type INDUSTRIAL
+      """
 ```
 
-#### [ESCENARIOS COMPLEMENTARIOS FASE 1 - PARA EL USUARIO]
-* `SCN-SHP-01`: Flete gratuito ($0 COP) para despacho estándar.
-* `SCN-SHP-02`: Recargo fijo de $35.000 COP para despacho express nocturno.
-* `SCN-COD-01`: Generación de código `ORD-YYMM-XXXX` con longitud 13 y fecha cronológica.
-* `SCN-COD-02`: Ausencia estricta de caracteres ambiguos (I, L, O, U, 0, 1) en Crockford Base32.
-* `SCN-PAY-01`: Validación y rechazo de pasarela desactivada en `SystemConfig`.
+#### Característica 4: Generación y Validación de Código Crockford Base32
+```gherkin
+Característica: Generación Canónica de Códigos de Pedido
+  Como sistema transaccional
+  Quiero generar identificadores de pedido concisos, cronológicos y legibles
+  Para que clientes y operarios puedan dictarlos al teléfono sin confusiones
+
+  Escenario: SCN-COD-01: Código generado cumple longitud exacta y prefijo cronológico
+    Dado que la orden se genera el 23 de Noviembre de 2026
+    Cuando se invoca la función de generación de código con esa fecha
+    Entonces el código retornado debe tener exactamente 13 caracteres de longitud
+    Y debe comenzar con el prefijo "ORD-2611-"
+    Y debe finalizar con un bloque aleatorio de 4 caracteres alfanuméricos válidos
+
+  Escenario: SCN-COD-02: Ausencia total de caracteres ambiguos (I, L, O, U, 0, 1)
+    Dado un proceso de generación masiva de 100 códigos consecutivos
+    Cuando se analiza la porción aleatoria de cada código generado
+    Entonces ninguno de los códigos debe contener los caracteres "I", "L", "O", "U" (mayúsculas o minúsculas)
+    Y ninguno de los códigos debe contener dígitos ambiguos "0" o "1"
+    Y cada código debe coincidir fielmente con el patrón regex:
+      """
+      ^ORD-\d{2}(0[1-9]|1[0-2])-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}$
+      """
+```
+
+#### Característica 5: Validación de Pasarelas de Pago Activas contra SystemConfig
+```gherkin
+Característica: Validación de Pasarelas de Pago Habilitadas
+  Como pasarela de validación comercial
+  Quiero comprobar que el método de pago elegido esté encendido en la configuración
+  Para prevenir pedidos con métodos suspendidos por mantenimiento o liquidez
+
+  Escenario: SCN-PAY-01: Mapeo correcto de métodos a claves de configuración
+    Cuando se solicita la clave de configuración para los siguientes métodos:
+      | paymentMethod      | expectedConfigKey                 |
+      | "CASH_ON_DELIVERY" | "payment_cod_enabled"             |
+      | "BANK_TRANSFER"    | "payment_bank_transfer_enabled"   |
+      | "CREDIT_CARD"      | "payment_credit_card_enabled"     |
+      | "CREDIT"           | "payment_credit_card_enabled"     |
+    Entonces la clave devuelta debe coincidir exactamente con el valor esperado
+
+  Escenario: SCN-PAY-02: Aprobación de métodos de pago activos
+    Dado que el método "CASH_ON_DELIVERY" tiene bandera de habilitación en true
+    Cuando se valida el método de pago
+    Entonces la validación no debe emitir ninguna excepción
+
+  Escenario: SCN-PAY-03: Rechazo de método Contra Entrega temporalmente inactivo
+    Dado que el método "CASH_ON_DELIVERY" se encuentra deshabilitado (false)
+    Cuando se valida el método de pago
+    Entonces el sistema debe abortar con el mensaje:
+      """
+      El método de pago 'Contra Entrega (Efectivo/Datáfono)' se encuentra temporalmente inactivo.
+      """
+
+  Escenario: SCN-PAY-04: Rechazo de método Transferencia Bancaria inactivo
+    Dado que el método "BANK_TRANSFER" se encuentra deshabilitado (false)
+    Cuando se valida el método de pago
+    Entonces el sistema debe abortar con el mensaje:
+      """
+      El método de pago 'Transferencia Bancaria' se encuentra temporalmente inactivo.
+      """
+
+  Escenario: SCN-PAY-05: Rechazo de método no reconocido por el sistema
+    Dado un método de pago desconocido "BITCOIN_LIGHTNING"
+    Cuando se intenta obtener su clave de configuración
+    Entonces el sistema debe arrojar un error indicando "Método de pago no reconocido: BITCOIN_LIGHTNING"
+```
 
 ---
 
 ### 5.2. FASE 2: Servicios e Integración con Base de Datos (`server/tests/integration/`)
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 2]
+#### Característica 6: `OrderService.checkout` - Orquestación Transaccional de Pedidos
 ```gherkin
-Característica: [PRIORITARIO-I1] Checkout Transaccional con Descuento Atómico de Stock e Inserción de Items
+Característica: Orquestación de Checkout y Transaccionalidad de Inventario
   Como servicio central de pedidos (OrderService)
-  Quiero procesar el checkout de un cliente descontando el inventario físico en bodega
-  Para garantizar la consistencia transaccional y congelar los precios pactados
+  Quiero procesar la compra de un cliente verificando stock, precios y pasarelas
+  Para garantizar la integridad financiera y el descuento atómico de inventario en bodega
 
-  Escenario: Checkout exitoso descuenta stock en bodega y graba snapshot de precios
-    Dado un cliente registrado con ID 1 tipo "INDUSTRIAL"
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-I1 / SCN-INT-CHK-01: Checkout exitoso para cliente INDUSTRIAL descuenta stock y congela precios
+    Dado un cliente registrado con ID 1 clasificado como "INDUSTRIAL"
     Y un DeliveryPlace registrado con ID 10 perteneciente al cliente 1
-    Y un producto "Whisky Buchanan's 12" con stock de 50 cajas y tarifa de $120.000 COP para >=5 cajas
-    Cuando el cliente realiza checkout solicitando 6 cajas con entrega "STANDARD"
-    Entonces se debe crear una nueva orden en estado "PENDING"
-    Y el stock disponible del producto en bodega debe reducirse exactamente a 44 cajas
-    Y la orden debe contener 1 item con casesQuantity 6 y unitPrice congelado en $120.000 COP
+    Y un producto "Whisky Buchanan's 12" con stock inicial de 50 cajas
+    Y precios configurados para INDUSTRIAL: 1 caja a $130.000 COP, 5 cajas a $120.000 COP
+    Cuando el cliente ejecuta checkout solicitando 6 cajas con entrega "STANDARD"
+    Entonces se debe crear un registro en la tabla "orders" con estado "PENDING"
+    Y el código de la orden debe cumplir el patrón "ORD-YYMM-XXXX"
+    Y el stock disponible del producto en bodega debe reducirse a 44 cajas (50 - 6)
+    Y la orden debe contener 1 OrderItem con casesQuantity 6 y unitPrice congelado en $120.000 COP
     Y el total de la orden debe ser exactamente $720.000 COP ($120.000 * 6 + $0 flete)
 
-  Escenario: Rechazo de checkout por stock insuficiente no debe mutar inventario
-    Dado un producto "Ron Zacapa 23" con solo 2 cajas disponibles en bodega
-    Cuando el cliente intenta realizar checkout solicitando 5 cajas
-    Entonces el servicio debe lanzar un error indicando "Insufficient stock"
-    Y el stock del producto en base de datos debe permanecer inalterado en 2 cajas
+  Escenario: SCN-INT-CHK-02: Checkout exitoso para cliente RETAIL con flete estándar
+    Dado un cliente registrado con ID 2 clasificado como "RETAIL"
+    Y un DeliveryPlace con ID 20 perteneciente al cliente 2
+    Y un producto "Ron Zacapa 23" con stock de 25 cajas y precio RETAIL de $142.000 COP
+    Cuando el cliente ejecuta checkout solicitando 3 cajas con entrega "STANDARD"
+    Entonces se crea la orden con total de $426.000 COP ($142.000 * 3) y flete de $0 COP
+    Y el stock del producto en bodega disminuye a 22 cajas
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-I1 / SCN-INT-CHK-03: Rechazo de checkout por stock insuficiente no muta inventario
+    Dado un producto "Ron Zacapa 23" con stock disponible de solo 2 cajas en bodega
+    Cuando un cliente intenta realizar checkout solicitando 5 cajas
+    Entonces el servicio debe lanzar un error indicando:
+      """
+      Insufficient stock for "Ron Zacapa 23". Requested: 5 cases, Available: 2 cases.
+      """
+    Y el stock del producto en base de datos debe permanecer intacto en 2 cajas
+    Y no debe haberse insertado ningún registro en la tabla "orders" ni en "order_items"
+
+  Escenario: SCN-INT-CHK-04: Rechazo de checkout si el método de pago está inactivo en SystemConfig
+    Dado que en SystemConfig el parámetro "payment_cod_enabled" está establecido en "false"
+    Cuando un cliente intenta checkout seleccionando "CASH_ON_DELIVERY"
+    Entonces el servicio debe abortar la transacción indicando que el método está inactivo
+    Y el inventario de los productos en bodega no debe sufrir ninguna alteración
+
+  Escenario: SCN-INT-CHK-05: Rechazo de checkout si el DeliveryPlace no pertenece al cliente
+    Dado un cliente registrado con ID 1
+    Y un DeliveryPlace con ID 99 que pertenece a otro cliente con ID 2
+    Cuando el cliente 1 intenta realizar checkout indicando deliveryPlaceId 99
+    Entonces el servicio debe lanzar un error "Invalid delivery branch selected for this customer"
+    Y no se debe generar ninguna orden
 ```
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 2]
+#### Característica 7: `OrderService.cancelOrder` - Cancelación y Reintegro de Stock en Bodega
 ```gherkin
-Característica: [PRIORITARIO-I2] Protocolo de Reprogramación Prioritaria Express por Saturación Logística
-  Como administrador operativo
-  Quiero reprogramar una orden express nocturna para primera hora del día siguiente
-  Para compensar al cliente con un descuento en flete y priorizar su despacho ante saturación
+Característica: Cancelación de Pedidos y Reintegro de Stock
+  Como servicio de ciclo de vida de órdenes
+  Quiero cancelar pedidos pendientes y reembolsar el stock reservado al almacén
+  Para que la disponibilidad física de cajas se mantenga exacta
 
-  Escenario: Reprogramación express aplica compensación de $10.000 COP, muta notas y notifica
+  Escenario: SCN-INT-CAN-01: Cancelación de orden PENDING reintegra atómicamente el stock
+    Dado una orden existente con ID 500 en estado "PENDING"
+    Y la orden contiene 10 cajas reservadas del producto "Whisky Buchanan's 12"
+    Y el stock actual en bodega de ese producto es de 40 cajas
+    Cuando se invoca cancelOrder con el ID 500
+    Entonces el estado de la orden en base de datos debe actualizarse a "CANCELLED"
+    Y el stock disponible en bodega del producto debe aumentar a 50 cajas (40 + 10)
+
+  Escenario: SCN-INT-CAN-02: Cancelación exitosa dispara notificación al cliente
+    Dado una orden existente en estado "PENDING" perteneciente a un cliente con email "bar@poblado.com"
+    Cuando se invoca cancelOrder para esa orden
+    Entonces el NotificationPort debe haber sido invocado con el método notifyOrderCancelled
+    Y el payload debe contener el código de orden y el email del cliente
+
+  Escenario: SCN-INT-CAN-03: Rechazo de cancelación si la orden ya está cancelada
+    Dado una orden en base de datos que ya se encuentra en estado "CANCELLED"
+    Cuando se intenta invocar cancelOrder sobre dicha orden
+    Entonces el servicio debe lanzar un error "Order is already cancelled"
+    Y el inventario de bodega no debe sufrir doble reintegro
+```
+
+#### Característica 8: `OrderService.rescheduleExpressOrder` - Protocolo de Reprogramación Prioritaria Nocturna
+```gherkin
+Característica: Protocolo de Reprogramación Prioritaria por Saturación Logística
+  Como administrador del centro de distribución
+  Quiero reprogramar órdenes express nocturnas saturadas aplicando una compensación económica
+  Para aliviar la flota nocturna y garantizar entrega prioritaria al cliente a primera hora
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-I2 / SCN-INT-RES-01: Reprogramación exitosa aplica compensación de $10.000 COP y notifica
     Dado una orden existente con código "ORD-2611-7B3K" en estado "PENDING"
     Y modalidad de entrega "EXPRESS_EMERGENCY" con shippingFee de $35.000 COP y total de $155.000 COP
-    Cuando el administrador ejecuta rescheduleExpressOrder con motivo "Lluvia torrencial y saturación"
-    Entonces el shippingFee de la orden debe reducirse a $25.000 COP ($35.000 - $10.000)
-    Y el total de la orden debe reducirse a $145.000 COP
-    Y las notas de la orden deben contener "[REPROGRAMADO PRIORITARIO]"
-    Y el adaptador de notificaciones debe haber registrado el evento con el nuevo total y descuento
+    Cuando el administrador ejecuta rescheduleExpressOrder con motivo "Lluvia torrencial y saturación de flota"
+    Entonces el shippingFee de la orden debe reducirse exactamente a $25.000 COP ($35.000 - $10.000)
+    Y el total de la orden debe reducirse exactamente a $145.000 COP ($155.000 - $10.000)
+    Y las notas de la orden deben contener el prefijo "[REPROGRAMADO PRIORITARIO]"
     Y el estado de la orden debe mantenerse en "PENDING"
+    Y el NotificationPort debe haber registrado el evento notifyExpressRescheduled con el nuevo total
 
-  Escenario: Prevención estricta de doble reprogramación express
-    Dado una orden express que ya fue reprogramada y contiene "[REPROGRAMADO PRIORITARIO]" en sus notas
-    Cuando se intenta ejecutar nuevamente rescheduleExpressOrder sobre dicha orden
-    Entonces el servicio debe abortar con el error "This express order has already been rescheduled"
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-I2 / SCN-INT-RES-02: Prevención estricta de doble reprogramación express
+    Dado una orden express que ya fue reprogramada previamente y contiene "[REPROGRAMADO PRIORITARIO]" en sus notas
+    Cuando un operador intenta ejecutar nuevamente rescheduleExpressOrder sobre esa misma orden
+    Entonces el servicio debe abortar la operación con el error:
+      """
+      This express order has already been rescheduled
+      """
+    Y los valores de shippingFee y total no deben sufrir descuentos adicionales
+
+  Escenario: SCN-INT-RES-03: Rechazo de reprogramación para órdenes con modalidad STANDARD
+    Dado una orden en base de datos con deliveryType "STANDARD"
+    Cuando se intenta ejecutar rescheduleExpressOrder sobre dicha orden
+    Entonces el servicio debe rechazar la operación indicando que solo aplica para EXPRESS_EMERGENCY
+
+  Escenario: SCN-INT-RES-04: Rechazo de reprogramación para órdenes que ya no están PENDING
+    Dado una orden express que ya avanzó a estado "DISPATCHED" o "CONFIRMED"
+    Cuando se intenta invocar rescheduleExpressOrder
+    Entonces el servicio debe rechazar la solicitud indicando que solo órdenes en PENDING pueden reprogramarse
 ```
 
-#### [ESCENARIOS COMPLEMENTARIOS FASE 2 - PARA EL USUARIO]
-* `SCN-INT-CAN-01`: `cancelOrder` restituye atómicamente el stock de cajas a la tabla `products` y muta estado a `"CANCELLED"`.
-* `SCN-INT-CAN-02`: `cancelOrder` rechaza cancelar órdenes que ya se encuentren en estado `"CANCELLED"`.
-* `SCN-INT-CHK-03`: `checkout` rechaza la transacción si el método de pago seleccionado está inactivo en `SystemConfig`.
-* `SCN-INT-CRT-01`: `calculateCart` simula correctamente el carrito de compra leyendo dinámicamente umbrales de `SystemConfig`.
-* `SCN-INT-CFG-01`: `SystemConfigService.getNumber` y `getBoolean` devuelven valores con fallback ante claves inexistentes.
-* `SCN-INT-CFG-02`: `SystemConfigService.update` valida y actualiza parámetros dinámicos con tipos correctos.
+#### Característica 9: `OrderService.calculateCart` - Simulación Dinámica de Carrito con Parámetros Globales
+```gherkin
+Característica: Simulación Dinámica de Carrito de Compras
+  Como cliente o visitante de la plataforma
+  Quiero simular el costo de mi pedido en tiempo real con flete y descuentos por volumen
+  Para tomar decisiones de compra informadas antes de formalizar el checkout
+
+  Escenario: SCN-INT-CRT-01: Simulación de carrito para cliente INDUSTRIAL aplicando escalas dinámicas
+    Dado un cliente clasificado como "INDUSTRIAL"
+    Y un producto "Whisky Buchanan's 12" con stock de 50 cajas y escala de $120.000 COP para >=5 cajas
+    Cuando el cliente solicita simular un carrito con 6 cajas y despacho "STANDARD"
+    Entonces el subtotal calculado debe ser $720.000 COP
+    Y el shippingFee debe ser 0 COP
+    Y el grandTotal debe ser $720.000 COP
+    Y el ítem simulado debe reportar hasSufficientStock en true sin haber descontado stock en BD
+
+  Escenario: SCN-INT-CRT-02: Simulación de carrito express nocturno con flete dinámico de SystemConfig
+    Dado que en SystemConfig el parámetro "logistics_express_fee_cop" está configurado en 40000 COP
+    Cuando se simula un carrito con 2 cajas de licor y modalidad "EXPRESS_EMERGENCY"
+    Entonces el shippingFee debe reportar 40000 COP
+    Y el grandTotal debe sumar el subtotal de las cajas más los 40000 COP de flete
+
+  Escenario: SCN-INT-CRT-03: Rechazo de simulación express si el servicio nocturno está desactivado
+    Dado que en SystemConfig el parámetro "logistics_express_enabled" tiene valor "false"
+    Cuando se intenta simular un carrito con modalidad "EXPRESS_EMERGENCY"
+    Entonces el servicio debe lanzar un error indicando que el servicio express nocturno está inactivo
+```
+
+#### Característica 10: `SystemConfigService` - Gestión Tipada de Parámetros Globales
+```gherkin
+Característica: Gestión Tipada de Parámetros Globales (SystemConfigService)
+  Como motor transversal de configuración
+  Quiero leer y mutar parámetros operativos con validación de tipo y valores por defecto
+  Para gobernar el comportamiento del sistema en tiempo de ejecución sin redesplegar código
+
+  Escenario: SCN-INT-CFG-01: Lectura de parámetro numérico existente en base de datos
+    Dado que existe en BD la clave "logistics_min_cases_standard" con valor "3" y tipo "NUMBER"
+    Cuando se invoca getNumber("logistics_min_cases_standard", 1)
+    Entonces el método debe retornar el número entero 3
+
+  Escenario: SCN-INT-CFG-02: Lectura de parámetro numérico con fallback ante clave inexistente
+    Dado una clave inexistente "logistics_parametro_inexistente"
+    Cuando se invoca getNumber("logistics_parametro_inexistente", 10)
+    Entonces el método debe retornar el valor por defecto 10
+
+  Escenario: SCN-INT-CFG-03: Lectura de parámetro booleano existente
+    Dado que existe en BD la clave "payment_cod_enabled" con valor "true" y tipo "BOOLEAN"
+    Cuando se invoca getBoolean("payment_cod_enabled", false)
+    Entonces el método debe retornar el valor booleano true
+
+  Escenario: SCN-INT-CFG-04: Actualización válida de parámetro numérico
+    Dado la clave existente "logistics_express_fee_cop" de tipo "NUMBER"
+    Cuando se invoca update("logistics_express_fee_cop", "45000")
+    Entonces el registro en BD debe actualizar su campo value a "45000"
+    Y el campo updatedAt debe renovarse con la fecha ISO actual
+
+  Escenario: SCN-INT-CFG-05: Rechazo de actualización con tipo de dato incompatible
+    Dado la clave "logistics_express_fee_cop" de tipo "NUMBER"
+    Cuando se intenta invocar update("logistics_express_fee_cop", "TEXTO_NO_NUMERICO")
+    Entonces el servicio debe abortar con el error "expects a numeric value"
+    Y el valor original en BD debe permanecer inalterado
+```
 
 ---
 
 ### 5.3. FASE 3: Contratos de API HTTP & Seguridad RBAC (`server/tests/api/`)
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 3]
+#### Característica 11: `POST /api/v1/orders/calculate-cart` - Contrato de Endpoint y Acceso Anónimo vs Autenticado
 ```gherkin
-Característica: [PRIORITARIO-A1] Matriz de Autenticación y Autorización en POST /api/v1/orders/checkout
-  Como gateway de seguridad de la API
-  Quiero validar estrictamente el token JWT y el rol del usuario en el endpoint de checkout
-  Para asegurar que solo compradores legítimos generen compras
+Característica: Endpoint de Simulación de Carrito (POST /api/v1/orders/calculate-cart)
+  Como consumidor de la API REST
+  Quiero cotizar mi carrito tanto de forma pública como autenticada
+  Para visualizar los subtotales según mi segmento antes de ingresar credenciales
 
-  Escenario: Rechazo de solicitud sin cabecera Authorization (401 Unauthorized)
-    Dado que un cliente realiza un POST a "/api/v1/orders/checkout" sin token Bearer
-    Cuando se procesa la petición
-    Entonces el servidor debe responder con código de estado HTTP 401
-    Y la respuesta debe incluir el mensaje "Authentication token required"
+  Escenario: SCN-API-CRT-01: Acceso anónimo sin token calcula tarifas RETAIL por defecto
+    Dado que un usuario no autenticado envía un POST a "/api/v1/orders/calculate-cart"
+    Y el cuerpo contiene 2 cajas del producto con ID 101 sin especificar segmento
+    Cuando la API procesa la petición a través de optionalAuthMiddleware
+    Entonces el servidor debe responder con código HTTP 200 OK
+    Y el cálculo financiero devuelto debe aplicar la lista de precios RETAIL
 
-  Escenario: Rechazo para usuarios con roles no-CUSTOMER (403 Forbidden)
-    Dado un usuario autenticado con token válido cuyo rol es "SUPERVISOR"
-    Cuando intenta enviar un POST a "/api/v1/orders/checkout"
-    Entonces el servidor debe responder con código de estado HTTP 403
-    Y la respuesta debe indicar "Forbidden: insufficient permissions"
+  Escenario: SCN-API-CRT-02: Acceso anónimo especificando customerType en el cuerpo
+    Dado que un usuario no autenticado envía un POST a "/api/v1/orders/calculate-cart"
+    Y en el cuerpo de la petición incluye {"customerType": "INDUSTRIAL", "items": [{"productId": 101, "casesQuantity": 6}]}
+    Cuando la API procesa la solicitud
+    Entonces el servidor responde 200 OK
+    Y aplica los precios escalonados correspondientes al segmento INDUSTRIAL
 
-  Escenario: Checkout exitoso para usuario con rol CUSTOMER (201 Created)
-    Dado un usuario autenticado con token Bearer válido, rol "CUSTOMER" y customerId 1
-    Y un payload válido con deliveryPlaceId y al menos 1 ítem con stock suficiente
-    Cuando envía un POST a "/api/v1/orders/checkout"
-    Entonces el servidor debe responder con código HTTP 201 Created
-    Y la respuesta JSON debe contener el objeto de la orden creada con su código "ORD-"
+  Escenario: SCN-API-CRT-03: Acceso autenticado con Bearer token de cliente INDUSTRIAL
+    Dado un usuario autenticado con token Bearer válido cuyo req.user.customerType es "INDUSTRIAL"
+    Cuando envía un POST a "/api/v1/orders/calculate-cart" con 6 cajas
+    Entonces el servidor responde 200 OK
+    Y resuelve automáticamente la tarifa mayorista sin requerir customerType en el body
+
+  Escenario: SCN-API-CRT-04: Rechazo 400 Bad Request ante payload con esquema Zod inválido
+    Dado que se envía un POST a "/api/v1/orders/calculate-cart" con un arreglo "items" vacío []
+    Cuando la API valida el cuerpo con calculateCartSchema
+    Entonces el servidor debe responder inmediatamente con código HTTP 400 Bad Request
 ```
 
-#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 3]
+#### Característica 12: `POST /api/v1/orders/checkout` - Seguridad de Endpoint, Autenticación y Autorización
 ```gherkin
-Característica: [PRIORITARIO-A2] Control de Acceso RBAC en POST /api/v1/orders/:id/reschedule-express
-  Como controlador administrativo
-  Quiero restringir la reprogramación de emergencias exclusivamente a administradores y supervisores
-  Para prevenir manipulaciones comerciales o autofacturación de descuentos por clientes
+Característica: Endpoint de Checkout y Guardrails de Seguridad (POST /api/v1/orders/checkout)
+  Como gateway de seguridad del e-commerce
+  Quiero asegurar que únicamente compradores autenticados con rol CUSTOMER puedan crear pedidos
+  Para prevenir accesos no autorizados y fraudes transaccionales
 
-  Escenario: Rechazo de reprogramación para rol CUSTOMER (403 Forbidden)
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-A1 / SCN-API-CHK-01: Rechazo 401 Unauthorized sin cabecera Authorization
+    Dado que se envía una petición POST a "/api/v1/orders/checkout" sin cabecera Authorization
+    Cuando la petición es interceptada por authMiddleware
+    Entonces el servidor debe responder con código de estado HTTP 401 Unauthorized
+    Y el cuerpo de respuesta debe contener {"error": "Authentication token required"}
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-A1 / SCN-API-CHK-02: Rechazo 403 Forbidden para usuarios con rol SUPERVISOR o ADMIN
+    Dado un usuario autenticado con token JWT válido cuyo rol asignado es "SUPERVISOR"
+    Cuando intenta enviar un POST a "/api/v1/orders/checkout"
+    Entonces el middleware requireRoles("CUSTOMER") debe bloquear la petición
+    Y el servidor debe responder con código de estado HTTP 403 Forbidden
+    Y el cuerpo JSON debe indicar {"error": "Forbidden: insufficient permissions"}
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-A1 / SCN-API-CHK-03: Checkout exitoso 201 Created para cliente con rol CUSTOMER
+    Dado un usuario autenticado con rol "CUSTOMER", customerId 1 y customerType "INDUSTRIAL"
+    Y un payload válido con deliveryPlaceId 10, items con stock suficiente y método "CASH_ON_DELIVERY"
+    Cuando envía una petición POST a "/api/v1/orders/checkout"
+    Entonces el controlador debe procesar exitosamente la orden
+    Y el servidor debe responder con código de estado HTTP 201 Created
+    Y la respuesta debe incluir el objeto de la orden con su código canónico "ORD-YYMM-XXXX"
+    Y el estado retornado debe ser "PENDING"
+
+  Escenario: SCN-API-CHK-04: Rechazo 400 Bad Request si el usuario CUSTOMER no tiene perfil en tabla customers
+    Dado un usuario autenticado con rol "CUSTOMER" pero cuyo token carece de atributo customerId
+    Cuando intenta realizar checkout en "/api/v1/orders/checkout"
+    Entonces el servidor debe rechazar la solicitud con código HTTP 400 Bad Request
+    Y el mensaje de error debe indicar "Only registered customers can place orders"
+
+  Escenario: SCN-API-CHK-05: Rechazo 400 Bad Request cuando el payload viola el esquema Zod
+    Dado un usuario autenticado con rol "CUSTOMER"
+    Cuando envía una petición sin el campo obligatorio "contactName" o con formato de teléfono inválido
+    Entonces el servidor debe responder con código HTTP 400 Bad Request
+```
+
+#### Característica 13: `POST /api/v1/orders/:id/reschedule-express` - Control de Acceso RBAC para Operaciones de Emergencia
+```gherkin
+Característica: Endpoint de Reprogramación Express y Control RBAC (POST /orders/:id/reschedule-express)
+  Como módulo administrativo de despacho
+  Quiero que la reprogramación de pedidos express sea potestad exclusiva de administradores y supervisores
+  Para mantener el control logístico y evitar descuentos no autorizados por clientes
+
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-A2 / SCN-API-RES-01: Rechazo 403 Forbidden para usuarios con rol CUSTOMER
     Dado un usuario autenticado con rol "CUSTOMER"
     Cuando envía una petición POST a "/api/v1/orders/1/reschedule-express"
-    Entonces el servidor debe responder con código de estado HTTP 403
-    Y denegar el acceso a la operación
+    Entonces el middleware requireRoles("ADMIN", "SUPERVISOR") debe denegar el acceso
+    Y el servidor debe responder con código de estado HTTP 403 Forbidden
 
-  Escenario: Aprobación de reprogramación para rol ADMIN o SUPERVISOR (200 OK)
-    Dado un usuario autenticado con rol "ADMIN" o "SUPERVISOR"
+  # [MUESTRA PRIORITARIA - AGENTE 2]
+  Escenario: SCN-PRIO-A2 / SCN-API-RES-02: Aprobación exitosa 200 OK para usuario con rol ADMIN
+    Dado un usuario autenticado con rol "ADMIN"
     Y una orden express pendiente en base de datos con ID 1
-    Cuando envía una petición POST a "/api/v1/orders/1/reschedule-express" con motivo operativo
+    Cuando envía una petición POST a "/api/v1/orders/1/reschedule-express" con {"reason": "Saturación nocturna"}
     Entonces el servidor debe responder con código de estado HTTP 200 OK
-    Y el cuerpo de respuesta debe confirmar la orden con el flete y total descontados
+    Y el cuerpo JSON devuelto debe contener la orden con su shippingFee y total recalculados
+
+  Escenario: SCN-API-RES-03: Aprobación exitosa 200 OK para usuario con rol SUPERVISOR
+    Dado un usuario autenticado con rol "SUPERVISOR"
+    Y una orden express pendiente en base de datos con ID 2
+    When envía un POST a "/api/v1/orders/2/reschedule-express"
+    Entonces el servidor debe responder con código de estado HTTP 200 OK
+    Y aplicar el protocolo de compensación y reprogramación
+
+  Escenario: SCN-API-RES-04: Rechazo 401 Unauthorized ante petición sin autenticación
+    Dado una petición POST a "/api/v1/orders/1/reschedule-express" sin cabecera Authorization
+    Cuando es recibida por el servidor
+    Entonces responde con código HTTP 401 Unauthorized
+
+  Escenario: SCN-API-RES-05: Respuesta 404 Not Found si la orden no existe
+    Dado un usuario autenticado con rol "ADMIN"
+    Cuando envía una petición POST a "/api/v1/orders/9999/reschedule-express" para un ID inexistente
+    Entonces el servidor debe responder con código de estado HTTP 404 Not Found
 ```
 
-#### [ESCENARIOS COMPLEMENTARIOS FASE 3 - PARA EL USUARIO]
-* `SCN-API-CRT-01`: `POST /api/v1/orders/calculate-cart` permite acceso anónimo (sin token) devolviendo precios calculados para `RETAIL`.
-* `SCN-API-CRT-02`: `POST /api/v1/orders/calculate-cart` con Bearer token de cliente `INDUSTRIAL` resuelve automáticamente precios mayoristas sin necesidad de especificar `customerType` en el body.
-* `SCN-API-CFG-01`: `GET /api/v1/config` permite acceso a `ADMIN` y `SUPERVISOR` (200 OK) y bloquea a `CUSTOMER` (403 Forbidden).
-* `SCN-API-CFG-02`: `PUT /api/v1/config/:key` permite acceso exclusivamente a rol `ADMIN` (200 OK) y bloquea a rol `SUPERVISOR` (403 Forbidden).
+#### Característica 14: `GET /api/v1/config` y `PUT /api/v1/config/:key` - Gobernanza RBAC de Parámetros Globales
+```gherkin
+Característica: Endpoints de Configuración Global y Gobernanza RBAC
+  Como subsistema de gestión de parámetros
+  Quiero proteger la lectura y modificación de claves operativas mediante RBAC granular
+  Para que solo personal autorizado consulte los parámetros y solo administradores los modifiquen
+
+  Escenario: SCN-API-CFG-01: Consulta de configuración GET /api/v1/config permitida a SUPERVISOR (200 OK)
+    Dado un usuario autenticado con rol "SUPERVISOR"
+    Cuando realiza una petición GET a "/api/v1/config"
+    Entonces el servidor responde con código HTTP 200 OK
+    Y retorna el listado completo de parámetros operativos
+
+  Escenario: SCN-API-CFG-02: Consulta de configuración GET /api/v1/config permitida a ADMIN (200 OK)
+    Dado un usuario autenticado con rol "ADMIN"
+    Cuando realiza una petición GET a "/api/v1/config"
+    Entonces el servidor responde con código HTTP 200 OK
+
+  Escenario: SCN-API-CFG-03: Consulta de configuración GET /api/v1/config denegada a CUSTOMER (403 Forbidden)
+    Dado un usuario autenticado con rol "CUSTOMER"
+    Cuando realiza una petición GET a "/api/v1/config"
+    Entonces el servidor responde con código de estado HTTP 403 Forbidden
+
+  Escenario: SCN-API-CFG-04: Modificación PUT /api/v1/config/:key permitida exclusivamente a ADMIN (200 OK)
+    Dado un usuario autenticado con rol "ADMIN"
+    Cuando envía un PUT a "/api/v1/config/logistics_express_fee_cop" con {"value": "40000"}
+    Entonces el servidor responde con código HTTP 200 OK
+    Y el cuerpo devuelto confirma el valor actualizado a "40000"
+
+  Escenario: SCN-API-CFG-05: Modificación PUT /api/v1/config/:key denegada a SUPERVISOR (403 Forbidden)
+    Dado un usuario autenticado con rol "SUPERVISOR"
+    Cuando intenta enviar un PUT a "/api/v1/config/logistics_express_fee_cop" con un nuevo valor
+    Entonces el middleware requireRoles("ADMIN") debe bloquear la petición
+    Y el servidor responde con código de estado HTTP 403 Forbidden
+```
 
 ---
 
@@ -457,24 +866,78 @@ export const TEST_SYSTEM_CONFIG = [
 
 ---
 
-## 7. Matriz de Trazabilidad de Requisitos (RTM Unificada)
+## 7. Matriz de Trazabilidad de Requisitos (RTM Exhaustiva)
 
-| Cláusula Técnica | Componente / Costura | ID Escenario Gherkin | Nombre del Test / Escenario | Nivel | Responsable |
+A continuación se trazan de extremo a extremo el 100% de las cláusulas técnicas, reglas de negocio y escenarios Gherkin de las tres fases:
+
+| Cláusula Técnica | Componente / Costura | ID Escenario Gherkin | Nombre del Test / Escenario | Nivel | Responsable de Implementación |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Secc 1.2 / 3 (Regla I):** MOQ estándar y cajas cerradas | `order.rules.ts` | `SCN-PRIO-U1` | Validación de MOQ Dinámico (STANDARD vs EXPRESS) | Unit | **Agente 2 (Prioritario)** |
-| **Secc 2.1.E / 3 (Regla II):** Precios por volumen y segmento | `order.rules.ts` | `SCN-PRIO-U2` | Resolución de precios unitarios escalonados | Unit | **Agente 2 (Prioritario)** |
-| **Secc 4.1:** Costo flete estándar $0 y express $35.000 | `order.rules.ts` | `SCN-SHP-01..02` | Cálculo de flete según modalidad | Unit | Usuario (Complementario) |
-| **Secc 2.3.1:** Código Crockford Base32 inconfundible | `order.rules.ts` | `SCN-COD-01..02` | Generación y exclusión de caracteres confusos | Unit | Usuario (Complementario) |
-| **Secc 5.2 / 7:** Pasarelas de pago y SystemConfig | `order.rules.ts` | `SCN-PAY-01` | Validación de pasarela activa en SystemConfig | Unit | Usuario (Complementario) |
-| **Secc 3 (Regla IV):** Descuento atómico de stock y snapshot | `OrderService.checkout` | `SCN-PRIO-I1` | Checkout transaccional con descuento de stock y snapshot | Integration | **Agente 2 (Prioritario)** |
-| **Secc 4.2:** Protocolo reprogramación express (-$10.000 COP) | `OrderService.reschedule` | `SCN-PRIO-I2` | Reprogramación express con compensación y nota | Integration | **Agente 2 (Prioritario)** |
-| **Secc 3 (Regla IV / V):** Cancelación y reintegro de stock | `OrderService.cancel` | `SCN-INT-CAN-01` | Reintegro automático de stock y notificación | Integration | Usuario (Complementario) |
-| **Secc 1.2 / 4.1:** Simulación dinámica de carrito | `OrderService.calculateCart` | `SCN-INT-CRT-01` | Cálculo de carrito con parámetros SystemConfig | Integration | Usuario (Complementario) |
-| **Secc 7:** Lectura tipada y actualización de parámetros | `SystemConfigService` | `SCN-INT-CFG-01..02` | Lectura tipada con fallback y actualización validada | Integration | Usuario (Complementario) |
-| **Secc 6.1 / IAM:** Autenticación y roles en Checkout | `POST /checkout` | `SCN-PRIO-A1` | Matriz de seguridad en checkout (401, 403, 201) | API | **Agente 2 (Prioritario)** |
-| **Secc 4.2 / IAM:** RBAC exclusivo para reprogramar express | `POST /:id/reschedule` | `SCN-PRIO-A2` | Autorización exclusiva ADMIN/SUPERVISOR (403 vs 200) | API | **Agente 2 (Prioritario)** |
-| **Secc 6.1:** Carrito anónimo vs autenticado | `POST /calculate-cart` | `SCN-API-CRT-01..02` | optionalAuthMiddleware: acceso público vs mayorista | API | Usuario (Complementario) |
-| **Secc 7 / IAM:** Protección RBAC de SystemConfig | `GET/PUT /config` | `SCN-API-CFG-01..02` | GET (ADMIN/SUPERVISOR) vs PUT (Solo ADMIN) | API | Usuario (Complementario) |
+| **Secc 1.2 / 3 (Regla I)** | `order.rules.ts` | `SCN-PRIO-U1` / `SCN-MOQ-01` | Validación de MOQ estándar con 3 cajas | Unit | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 1.2 / 3 (Regla I)** | `order.rules.ts` | `SCN-MOQ-02` | Pedido estándar supera holgadamente MOQ (12 cajas) | Unit | Usuario (Complementario) |
+| **Secc 1.2 / 3 (Regla I)** | `order.rules.ts` | `SCN-MOQ-03` | Rechazo de pedido estándar con 2 cajas | Unit | Usuario (Complementario) |
+| **Secc 1.2 / 3 (Regla I)** | `order.rules.ts` | `SCN-MOQ-04` | Rechazo de pedido estándar con 0 cajas | Unit | Usuario (Complementario) |
+| **Secc 4.1** | `order.rules.ts` | `SCN-PRIO-U1` / `SCN-MOQ-05` | Validación de MOQ express con 1 caja | Unit | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 4.1** | `order.rules.ts` | `SCN-MOQ-06` | Pedido express con mayor volumen (4 cajas) | Unit | Usuario (Complementario) |
+| **Secc 4.1** | `order.rules.ts` | `SCN-MOQ-07` | Rechazo de pedido express con 0 cajas | Unit | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `order.rules.ts` | `SCN-MOQ-08` | MOQ estándar dinámico desde SystemConfig (5 cajas) | Unit | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `order.rules.ts` | `SCN-MOQ-09` | MOQ express dinámico desde SystemConfig (2 cajas) | Unit | Usuario (Complementario) |
+| **Secc 4.1** | `order.rules.ts` | `SCN-SHP-01` | Flete gratuito ($0 COP) para despacho estándar | Unit | Usuario (Complementario) |
+| **Secc 4.1** | `order.rules.ts` | `SCN-SHP-02` | Flete estándar inalterable con tarifa express pasada | Unit | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `order.rules.ts` | `SCN-SHP-03` | Flete fijo express nocturno ($35.000 COP) | Unit | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `order.rules.ts` | `SCN-SHP-04` | Flete express dinámico desde SystemConfig | Unit | Usuario (Complementario) |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRIO-U2` / `SCN-PRC-01` | Precio base RETAIL para 1 caja | Unit | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRC-02` | Cliente RETAIL con gran volumen no accede a INDUSTRIAL | Unit | Usuario (Complementario) |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRC-03` | Cliente INDUSTRIAL en escalón 1 (3 cajas) | Unit | Usuario (Complementario) |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRIO-U2` / `SCN-PRC-04` | Cliente INDUSTRIAL activa escalón 2 (5 cajas) | Unit | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRC-05` | Cliente INDUSTRIAL en rango de escalón 2 (8 cajas) | Unit | Usuario (Complementario) |
+| **Secc 2.1.E / 3 (Regla II)** | `order.rules.ts` | `SCN-PRC-06` | Cliente INDUSTRIAL activa escalón 3 (15 cajas) | Unit | Usuario (Complementario) |
+| **Secc 3 (Regla II)** | `order.rules.ts` | `SCN-PRC-07` | Excepción si no existen precios para el segmento | Unit | Usuario (Complementario) |
+| **Secc 2.3.1** | `order.rules.ts` | `SCN-COD-01` | Formato ORD-YYMM-XXXX con longitud 13 | Unit | Usuario (Complementario) |
+| **Secc 2.3.1** | `order.rules.ts` | `SCN-COD-02` | Exclusión de caracteres ambiguos (I, L, O, U, 0, 1) | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7** | `order.rules.ts` | `SCN-PAY-01` | Mapeo de método de pago a clave SystemConfig | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7** | `order.rules.ts` | `SCN-PAY-02` | Aprobación de métodos de pago activos | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7** | `order.rules.ts` | `SCN-PAY-03` | Rechazo de método Contra Entrega inactivo | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7** | `order.rules.ts` | `SCN-PAY-04` | Rechazo de método Transferencia Bancaria inactivo | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7** | `order.rules.ts` | `SCN-PAY-05` | Rechazo de método de pago desconocido | Unit | Usuario (Complementario) |
+| **Secc 3 (Regla IV / III)** | `OrderService.checkout` | `SCN-PRIO-I1` / `SCN-INT-CHK-01` | Checkout exitoso descuenta stock en bodega y graba snapshot | Integration | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 1.2 / 4.1** | `OrderService.checkout` | `SCN-INT-CHK-02` | Checkout exitoso para cliente RETAIL con flete $0 | Integration | Usuario (Complementario) |
+| **Secc 3 (Regla IV)** | `OrderService.checkout` | `SCN-PRIO-I1` / `SCN-INT-CHK-03` | Rechazo por stock insuficiente no muta inventario | Integration | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 5.2 / 7** | `OrderService.checkout` | `SCN-INT-CHK-04` | Rechazo si la pasarela está desactivada en SystemConfig | Integration | Usuario (Complementario) |
+| **Secc 2.1.C** | `OrderService.checkout` | `SCN-INT-CHK-05` | Rechazo si DeliveryPlace no pertenece al cliente | Integration | Usuario (Complementario) |
+| **Secc 3 (Regla IV / V)** | `OrderService.cancelOrder` | `SCN-INT-CAN-01` | Cancelación de orden PENDING reintegra stock a bodega | Integration | Usuario (Complementario) |
+| **Secc 6.3.2** | `OrderService.cancelOrder` | `SCN-INT-CAN-02` | Cancelación exitosa invoca seam de notificación | Integration | Usuario (Complementario) |
+| **Secc 3 (Regla V)** | `OrderService.cancelOrder` | `SCN-INT-CAN-03` | Rechazo de cancelación si orden ya está cancelada | Integration | Usuario (Complementario) |
+| **Secc 4.2** | `OrderService.reschedule` | `SCN-PRIO-I2` / `SCN-INT-RES-01` | Reprogramación express con compensación -$10.000 COP y nota | Integration | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 4.2** | `OrderService.reschedule` | `SCN-PRIO-I2` / `SCN-INT-RES-02` | Prevención estricta de doble reprogramación express | Integration | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 4.2** | `OrderService.reschedule` | `SCN-INT-RES-03` | Rechazo de reprogramación para orden con entrega STANDARD | Integration | Usuario (Complementario) |
+| **Secc 4.2** | `OrderService.reschedule` | `SCN-INT-RES-04` | Rechazo de reprogramación para orden no PENDING | Integration | Usuario (Complementario) |
+| **Secc 1.2 / 2.1.E** | `OrderService.calculateCart` | `SCN-INT-CRT-01` | Simulación de carrito INDUSTRIAL con escalas dinámicas | Integration | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `OrderService.calculateCart` | `SCN-INT-CRT-02` | Simulación express nocturna con flete de SystemConfig | Integration | Usuario (Complementario) |
+| **Secc 4.1 / 7** | `OrderService.calculateCart` | `SCN-INT-CRT-03` | Rechazo de simulación express si servicio nocturno está apagado | Integration | Usuario (Complementario) |
+| **Secc 7** | `SystemConfigService` | `SCN-INT-CFG-01` | Lectura de parámetro numérico getNumber | Integration | Usuario (Complementario) |
+| **Secc 7** | `SystemConfigService` | `SCN-INT-CFG-02` | Fallback de getNumber ante clave inexistente | Integration | Usuario (Complementario) |
+| **Secc 7** | `SystemConfigService` | `SCN-INT-CFG-03` | Lectura de parámetro booleano getBoolean | Integration | Usuario (Complementario) |
+| **Secc 7** | `SystemConfigService` | `SCN-INT-CFG-04` | Actualización válida de parámetro numérico con updatedAt | Integration | Usuario (Complementario) |
+| **Secc 7** | `SystemConfigService` | `SCN-INT-CFG-05` | Rechazo de actualización con tipo de dato incompatible | Integration | Usuario (Complementario) |
+| **Secc 6.1** | `POST /calculate-cart` | `SCN-API-CRT-01` | Acceso anónimo calcula tarifas RETAIL por defecto | API | Usuario (Complementario) |
+| **Secc 6.1** | `POST /calculate-cart` | `SCN-API-CRT-02` | Acceso anónimo con customerType INDUSTRIAL en body | API | Usuario (Complementario) |
+| **Secc 6.1** | `POST /calculate-cart` | `SCN-API-CRT-03` | Acceso autenticado INDUSTRIAL resuelve precios mayoristas | API | Usuario (Complementario) |
+| **Secc 6.2** | `POST /calculate-cart` | `SCN-API-CRT-04` | Rechazo 400 Bad Request ante payload inválido en Zod | API | Usuario (Complementario) |
+| **Secc 6.1 / IAM** | `POST /checkout` | `SCN-PRIO-A1` / `SCN-API-CHK-01` | Rechazo 401 Unauthorized sin token Bearer | API | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 6.1 / IAM** | `POST /checkout` | `SCN-PRIO-A1` / `SCN-API-CHK-02` | Rechazo 403 Forbidden para rol SUPERVISOR o ADMIN | API | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 6.1 / IAM** | `POST /checkout` | `SCN-PRIO-A1` / `SCN-API-CHK-03` | Checkout exitoso 201 Created para rol CUSTOMER | API | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 2.1.A** | `POST /checkout` | `SCN-API-CHK-04` | Rechazo 400 Bad Request si usuario carece de customerId | API | Usuario (Complementario) |
+| **Secc 6.2** | `POST /checkout` | `SCN-API-CHK-05` | Rechazo 400 Bad Request ante fallo de validación Zod | API | Usuario (Complementario) |
+| **Secc 4.2 / IAM** | `POST /:id/reschedule` | `SCN-PRIO-A2` / `SCN-API-RES-01` | Rechazo 403 Forbidden para rol CUSTOMER | API | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 4.2 / IAM** | `POST /:id/reschedule` | `SCN-PRIO-A2` / `SCN-API-RES-02` | Aprobación exitosa 200 OK para rol ADMIN | API | **Agente 2 (Muestra Prioritaria)** |
+| **Secc 4.2 / IAM** | `POST /:id/reschedule` | `SCN-API-RES-03` | Aprobación exitosa 200 OK para rol SUPERVISOR | API | Usuario (Complementario) |
+| **Secc 6.1** | `POST /:id/reschedule` | `SCN-API-RES-04` | Rechazo 401 Unauthorized sin cabecera de autenticación | API | Usuario (Complementario) |
+| **Secc 4.2** | `POST /:id/reschedule` | `SCN-API-RES-05` | Respuesta 404 Not Found si orden no existe | API | Usuario (Complementario) |
+| **Secc 7 / IAM** | `GET /config` | `SCN-API-CFG-01` | Consulta permitida 200 OK a rol SUPERVISOR | API | Usuario (Complementario) |
+| **Secc 7 / IAM** | `GET /config` | `SCN-API-CFG-02` | Consulta permitida 200 OK a rol ADMIN | API | Usuario (Complementario) |
+| **Secc 7 / IAM** | `GET /config` | `SCN-API-CFG-03` | Consulta denegada 403 Forbidden a rol CUSTOMER | API | Usuario (Complementario) |
+| **Secc 7 / IAM** | `PUT /config/:key` | `SCN-API-CFG-04` | Modificación permitida exclusivamente a ADMIN (200 OK) | API | Usuario (Complementario) |
+| **Secc 7 / IAM** | `PUT /config/:key` | `SCN-API-CFG-05` | Modificación denegada 403 Forbidden a SUPERVISOR | API | Usuario (Complementario) |
 
 ---
 
@@ -495,7 +958,7 @@ Para declarar aprobada la suite de pruebas del backend en sus Fases 1, 2 y 3:
  [✓] 4. Cobertura de Código Mínima:
       • Fase 1: 100% Branch, Statement y Function en `order.rules.ts`.
       • Fase 2: 100% de los flujos críticos de stock, compensación y estados de `OrderService`.
-      • Fase 3: Cobertura de los códigos de respuesta clave (401, 403, 200, 201, 400).
+      • Fase 3: Cobertura de los códigos de respuesta clave (401, 403, 200, 201, 400, 404).
  [✓] 5. Aislamiento Total de Persistencia:
       • Las pruebas de Fase 2 y 3 NUNCA tocan `server/data.db` de producción o desarrollo.
       • Operan exclusivamente sobre `server/data.test.db` o base SQLite en memoria.
