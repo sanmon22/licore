@@ -1,682 +1,533 @@
 # ESPECIFICACIÓN MAESTRA DE PRUEBAS DE BACKEND
-## FASE 1: REGLAS DE DOMINIO PURO (`order.rules.ts`)
+## FASES 1, 2 Y 3: DOMINIO PURO, INTEGRACIÓN DE SERVICIOS Y CONTRATOS API REST
 
-> **Estado:** Aprobado para Ejecución de Pruebas  
-> **Versión:** 1.1.0  
-> **Fecha de Emisión:** 23 de Noviembre de 2026  
-> **Módulo Bajo Prueba:** [`server/src/modules/orders/domain/order.rules.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/domain/order.rules.ts)  
-> **Suite de Prueba Unitaria:** [`server/tests/unit/order.rules.test.ts`](file:///C:/_code/licores-crm/server/tests/unit/order.rules.test.ts)  
+> **Estado:** Aprobado para Ejecución de Pruebas Automatizadas  
+> **Versión:** 2.0.0 (Master Unified Test Specification)  
+> **Fecha de Actualización:** 23 de Noviembre de 2026  
+> **Módulos Bajo Prueba:**  
+> • **Fase 1 (Unit):** [`server/src/modules/orders/domain/order.rules.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/domain/order.rules.ts)  
+> • **Fase 2 (Integration):** [`server/src/modules/orders/services/order.service.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/services/order.service.ts), [`server/src/modules/system-config/services/system-config.service.ts`](file:///C:/_code/licores-crm/server/src/modules/system-config/services/system-config.service.ts)  
+> • **Fase 3 (API & RBAC):** [`server/src/modules/orders/order.routes.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/order.routes.ts), [`server/src/modules/system-config/system-config.routes.ts`](file:///C:/_code/licores-crm/server/src/modules/system-config/system-config.routes.ts), [`server/src/middlewares/auth.middleware.ts`](file:///C:/_code/licores-crm/server/src/middlewares/auth.middleware.ts), [`server/src/middlewares/role.middleware.ts`](file:///C:/_code/licores-crm/server/src/middlewares/role.middleware.ts)  
+> **Suites de Prueba:**  
+> • Unit: [`server/tests/unit/order.rules.test.ts`](file:///C:/_code/licores-crm/server/tests/unit/order.rules.test.ts)  
+> • Integration: [`server/tests/integration/order.service.test.ts`](file:///C:/_code/licores-crm/server/tests/integration/order.service.test.ts)  
+> • API: [`server/tests/api/order.routes.test.ts`](file:///C:/_code/licores-crm/server/tests/api/order.routes.test.ts)  
 > **Especificación Técnica Base:** [`TECHNICAL_SPECIFICATION.md`](file:///C:/_code/licores-crm/TECHNICAL_SPECIFICATION.md)  
 > **Glosario Ubicuo:** [`GLOSSARY.md`](file:///C:/_code/licores-crm/GLOSSARY.md)  
 
 ---
 
-## 1. Resumen Ejecutivo y Alcance de la Fase 1
+## 1. Resumen Ejecutivo y Alcance Global (Fases 1, 2 y 3)
 
-### 1.1. Contexto Arquitectónico
-La plataforma e-commerce de licores (`licores-crm`) está diseñada bajo el patrón de **Monolito Modular (Vertical Slices)** y los principios de **Módulos Profundos (Deep Modules)** y **Diseño Dirigido por el Dominio (DDD)**. 
-
-En este marco arquitectónico, la **Costura 1 (Seam 1: Dominio Puro)** representa el núcleo matemático, lógico e inviolable del negocio. Toda la lógica de cálculo financiero, elegibilidad logística, escalonamiento de precios y codificación canónica reside en funciones puras libres de efectos secundarios dentro de [`order.rules.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/domain/order.rules.ts).
+### 1.1. Pirámide de Pruebas y Estrategia de Calidad
+La arquitectura de `licores-crm` implementa una estrategia de pruebas por capas estructurada según los principios de **Módulos Profundos (Deep Modules)** y **Diseño Dirigido por el Dominio (DDD)**. La suite desacopla las responsabilidades en tres fases consecutivas y complementarias:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        ARQUITECTURA DE CAPAS                           │
+│                        PIRÁMIDE DE PRUEBAS DE BACKEND                  │
 └────────────────────────────────────────────────────────────────────────┘
-  [Controladores HTTP / API REST]  ◄── Entrada Shallow (Zod, Express)
-                 │
-                 ▼
-     [Servicios Orquestadores]    ◄── Manejo Transaccional & Persistencia
-                 │
-                 ▼
- ┌───────────────────────────────┐
- │ COSTURA 1: DOMINIO PURO       │ ◄─── ¡ALCANCE EXCLUSIVO DE LA FASE 1!
- │ (`order.rules.ts`)            │      - Cero I/O (Sin BD, sin Red, sin FS)
- │                               │      - Cero Asincronía (Síncrono puro)
- │ • resolveTieredUnitPrice()    │      - 100% Determinista y Aislado
- │ • validateMinimumOrderQty()   │      - Tiempo de ejecución < 500ms
- │ • calculateShippingFee()      │
- │ • generateOrderCode()         │
- │ • validatePaymentMethodActive│
- └───────────────────────────────┘
+                   / \
+                  /   \     FASE 3: Contratos API HTTP & Seguridad RBAC
+                 / API \    - Supertest contra Express App & Routers
+                /───────\   - Middleware Auth (JWT) & Role Middleware (401/403/201)
+               /         \
+              /  INTEGRA- \  FASE 2: Servicios de Negocio & Persistencia
+             /    CIÓN     \ - Transacciones atómicas, descuento de inventario
+            /───────────────\- Mocking de NotificationPort & Base data.test.db
+           /                 \
+          /      UNIDAD       \ FASE 1: Dominio Puro (`order.rules.ts`)
+         /     (DOMINIO)       \- Cero I/O, sin BD, funciones síncronas puras
+        /───────────────────────\- Tiempo de ejecución < 500ms
 ```
 
-### 1.2. Propósito de la Fase 1
-Garantizar que el 100% de las reglas matemáticas, límites de borde, validaciones de cantidad mínima de pedido (MOQ), bifurcaciones de tarifas logísticas y algoritmos de generación de códigos alfanuméricos funcionen de manera infalible antes de acoplarlos con el motor de persistencia SQLite o el framework web Express.
+### 1.2. Alcance Detallado por Fase
 
-### 1.3. Fronteras y Límites del Alcance (Boundaries)
+| Fase | Alcance Arquitectónico | Dependencias Externas / I/O | Ubicación de Suites |
+| :--- | :--- | :--- | :--- |
+| **Fase 1: Dominio Puro** | Lógica matemática, cálculo de fletes, resolución de precios por volumen, generación de códigos Crockford Base32. | **Cero I/O**. Objetos en memoria pura sin persistencia. | `server/tests/unit/order.rules.test.ts` |
+| **Fase 2: Integración** | Orquestación transaccional (`OrderService`, `SystemConfigService`), descuento/reintegro de stock en bodega, snapshots financieros, protocolo de reprogramación express y mock del seam de notificaciones. | Base de datos SQLite aislada (`server/data.test.db`) mediante `node:sqlite`. Seam de notificación mockeado. | `server/tests/integration/order.service.test.ts` |
+| **Fase 3: API & Seguridad** | Enrutadores Express, traducción HTTP (Zod schemas), control de acceso basado en roles (`CUSTOMER`, `SUPERVISOR`, `ADMIN`), tokens JWT (`authMiddleware`, `optionalAuthMiddleware`). | Servidor Express en memoria (Supertest), base de datos de test (`data.test.db`). | `server/tests/api/order.routes.test.ts` |
 
-| Dimensión | En Alcance (Fase 1) | Fuera de Alcance (Diferido a Fases 2-4) |
-| :--- | :--- | :--- |
-| **Componentes** | [`server/src/modules/orders/domain/order.rules.ts`](file:///C:/_code/licores-crm/server/src/modules/orders/domain/order.rules.ts) | Servicios (`order.service.ts`), Controladores, Middlewares |
-| **Persistencia** | Fixtures canónicos en memoria pura (POJOs tipados) | Base de datos SQLite (`node:sqlite`), Drizzle ORM |
-| **I/O & Red** | Inexistente (ejecución síncrona en CPU) | Llamadas HTTP, Pasarelas de Pago, Webhooks |
-| **Efectos Secundarios** | Funciones puras (Entrada $\to$ Salida / Error) | Logs en disco, Envíos de Notificaciones (Email/WhatsApp) |
-| **Validación Request** | Validación interna de reglas de dominio | Validación de esquemas Zod en capas de transporte |
+### 1.3. Asignación de Responsabilidades: Escenarios Prioritarios vs. Complementarios
+Para asegurar una ejecución eficiente del plan de calidad:
+* **Agente 2 (Test Implementer):** Es responsable de implementar **2 escenarios prioritarios de muestra por fase** (6 escenarios en total), garantizando la infraestructura base, utilidades de prueba, mocks y ejecución 100% verde en Vitest.
+* **Usuario / Equipo de Desarrollo:** Cuenta con la especificación Gherkin exhaustiva de todos los **escenarios complementarios** formalizados en este documento para continuar extendiendo la suite a su propio ritmo.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│              DISTRIBUCIÓN DE IMPLEMENTACIÓN (MUESTRA PRIORITARIA vs COMPLEMENTARIOS)     │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+ • FASE 1 (Unit - order.rules.ts):
+   [AGENTE 2] SCN-PRIO-U1: Validación de MOQ Dinámico (STANDARD vs EXPRESS_EMERGENCY).
+   [AGENTE 2] SCN-PRIO-U2: Resolución de Precios Unitarios Escalonados (RETAIL vs INDUSTRIAL).
+   [USUARIO]  SCN-MOQ-01..09, SCN-SHP-01..04, SCN-PRC-01..07, SCN-COD-01..02, SCN-PAY-01..05.
+
+ • FASE 2 (Integration - OrderService & SystemConfigService):
+   [AGENTE 2] SCN-PRIO-I1: Checkout Transaccional con Descuento Atómico de Stock e Inserción de Items.
+   [AGENTE 2] SCN-PRIO-I2: Reprogramación Prioritaria Express con Descuento -$10.000 COP y Notificación.
+   [USUARIO]  SCN-INT-CHK-02..04, SCN-INT-CAN-01..02, SCN-INT-RES-02..04, SCN-INT-CRT-01..02, SCN-INT-CFG-01..03.
+
+ • FASE 3 (API HTTP & Seguridad RBAC):
+   [AGENTE 2] SCN-PRIO-A1: Matriz de Autenticación y Autorización en POST /checkout (401, 403, 201).
+   [AGENTE 2] SCN-PRIO-A2: Control RBAC en POST /orders/:id/reschedule-express (403 CUSTOMER vs 200 ADMIN).
+   [USUARIO]  SCN-API-CRT-01..02, SCN-API-CHK-03..04, SCN-API-RES-03, SCN-API-CFG-01..04.
+```
 
 ### 1.4. Estructura de Directorios para Pruebas (`server/tests/`)
-Para garantizar un crecimiento ordenado y escalable de la infraestructura de pruebas de calidad de software del backend, se separa la suite de pruebas del código fuente de producción (`server/src/`), organizando las pruebas bajo la carpeta centralizada `server/tests/` clasificada por niveles de la pirámide de testing:
 
 ```
 server/
 ├── src/                               # Código de producción (Vertical Slices)
 │   ├── db/                            # Esquemas y conexión Drizzle ORM
-│   ├── middlewares/                   # Guardrails transversales (auth, roles)
+│   ├── middlewares/                   # Guardrails transversales (authMiddleware, requireRoles)
 │   └── modules/
 │       ├── orders/
-│       │   ├── domain/
-│       │   │   ├── order.rules.ts     ◄── SUJETO BAJO PRUEBA (Fase 1)
-│       │   │   └── order.types.ts     ◄── Contratos y esquemas Zod
-│       │   ├── services/
-│       │   │   └── order.service.ts   ◄── Orquestación transaccional
-│       │   ├── controllers/
+│       │   ├── domain/                # order.rules.ts, order.types.ts
+│       │   ├── services/              # order.service.ts
+│       │   ├── controllers/           # order.controller.ts
 │       │   └── order.routes.ts
-│       └── ...
+│       └── system-config/
+│           ├── services/              # system-config.service.ts
+│           └── system-config.routes.ts
 └── tests/                             # SUITE CENTRALIZADA DE PRUEBAS
-    ├── unit/                          ◄── FASE 1: Pruebas Unitarias de Dominio Puro
-    │   └── order.rules.test.ts        ◄── SUITE ACTUAL DE FASE 1
-    ├── integration/                   ◄── FASE 2: Pruebas de Integración (Servicios + data.test.db)
-    │   └── order.service.test.ts
-    ├── api/                           ◄── FASE 3: Pruebas de Contratos HTTP & Endpoints Express
-    │   └── order.routes.test.ts
-    └── e2e/                           ◄── FASE 4: Flujos Transaccionales Completos de Checkout
+    ├── unit/                          ◄── FASE 1: Dominio Puro en Memoria
+    │   └── order.rules.test.ts        ◄── Implementado (Agente 2 & Base)
+    ├── integration/                   ◄── FASE 2: Servicios & Persistencia data.test.db
+    │   └── order.service.test.ts      ◄── Implementación Agente 2 (Muestra Prioritaria)
+    ├── api/                           ◄── FASE 3: Endpoints HTTP & Guardrails RBAC
+    │   └── order.routes.test.ts       ◄── Implementación Agente 2 (Muestra Prioritaria)
+    └── e2e/                           ◄── FASE 4: Flujos Transaccionales Completos (Futuro)
         └── checkout-flow.test.ts
 ```
-
-* **`server/tests/unit/` (Alcance Fase 1):** Aloja pruebas puras de lógica algorítmica y funciones matemáticas. No requiere levantar bases de datos ni servidores Express.
-* **`server/tests/integration/` (Fase 2):** Pruebas de servicios orquestadores con base de datos de pruebas aislada (`data.test.db`) y control de transacciones.
-* **`server/tests/api/` (Fase 3):** Pruebas sobre la capa HTTP usando Supertest/Fetch contra controladores y validadores Zod.
-* **`server/tests/e2e/` (Fase 4):** Pruebas de extremo a extremo que simulan compras reales, reservas de inventario y cancelaciones.
 
 ---
 
 ## 2. Invariantes de Negocio (Reglas Inviolables)
 
-El sistema impone cinco invariantes fundamentales que ninguna capa superior (servicios, controladores, interfaces gráficas) puede violar bajo ninguna circunstancia:
+El sistema impone cinco invariantes fundamentales que ninguna capa (dominio, servicio, controlador, UI) puede violar:
 
 ### Invariante 1: Indivisibilidad en Cajas Cerradas y No Negatividad
 * **Unidad Mínima de Venta:** Exclusivamente **Cajas Cerradas (`Case`)**. No existe venta de botellas individuales ni fracciones decimales.
-* **Dominio Numérico:** Todas las variables de volumen (`casesQuantity`, `totalCases`, `minCases`, `stockCases`) pertenecen al conjunto de enteros estrictamente positivos ($\mathbb{Z}^+$, donde $\text{valor} \ge 1$). Cantidades de cero ($0$) o números negativos son inmediatamente rechazadas.
-* **Moneda Base:** Pesos Colombianos (**COP**). Los valores monetarios unitarios y totales deben ser mayores o iguales a cero ($\ge 0$).
+* **Dominio Numérico:** Todas las variables de volumen (`casesQuantity`, `totalCases`, `minCases`, `stockCases`) pertenecen a enteros estrictamente positivos ($\mathbb{Z}^+ > 0$).
+* **Moneda Base:** Pesos Colombianos (**COP**). Valores monetarios $\ge 0$.
 
 ### Invariante 2: Formato Canónico e Inconfundible del Código de Orden (`Order.code`)
 * **Longitud Estricta:** Exactamente **13 caracteres** alfanuméricos en mayúscula.
 * **Estructura:** `ORD-[YY][MM]-[XXXX]`
   * `ORD-`: Prefijo fijo de 4 caracteres.
-  * `[YY][MM]`: 4 dígitos cronológicos de año y mes de creación (ej. `2611` para noviembre de 2026).
+  * `[YY][MM]`: 4 dígitos de año y mes cronológico (ej. `2611` para noviembre de 2026).
   * `-`: Guion separador (1 carácter).
-  * `[XXXX]`: 4 caracteres generados con el alfabeto restringido **Crockford Base32**.
-* **Alfabeto Crockford Base32 Restringido:**  
-  `23456789ABCDEFGHJKMNPQRSTVWXYZ` (32 símbolos).
-* **Exclusión de Ambigüedad Visual y Semántica:**
-  * Se excluye el `0` (cero) y la letra `O` para evitar confusiones al leer o dictar el código.
-  * Se excluye el `1` (uno), la letra `I` y la letra `L` para evitar ambigüedades tipográficas.
-  * Se excluye la letra `U` para impedir la formación involuntaria de palabras altisonantes u ofensivas.
-* **Expresión Regular Canónica:**
-  ```regex
-  ^ORD-\d{2}(0[1-9]|1[0-2])-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}$
-  ```
+  * `[XXXX]`: 4 caracteres generados con **Crockford Base32 restringido** (`23456789ABCDEFGHJKMNPQRSTVWXYZ`).
+* **Exclusión de Ambigüedad:** Exclusión estricta de `0`, `O`, `1`, `I`, `L`, `U` y minúsculas.
+* **Regex:** `^ORD-\d{2}(0[1-9]|1[0-2])-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}$`
 
-### Invariante 3: Segmentación Estricta de Precios (RETAIL vs INDUSTRIAL) y Escalonamiento por Volumen
-* **Aislamiento de Tarifas:** Un cliente clasificado como `RETAIL` jamás podrá beneficiarse de las tarifas con descuento por volumen reservadas para clientes `INDUSTRIAL`.
-* **Escalonamiento Dinámico:** Para clientes `INDUSTRIAL`, la tarifa unitaria por caja se resuelve seleccionando el escalón de mayor volumen que satisfaga la condición:
+### Invariante 3: Segmentación Estricta de Precios (RETAIL vs INDUSTRIAL) y Snapshotting Financiero
+* **Aislamiento de Tarifas:** Clientes `RETAIL` jamás acceden a tarifas `INDUSTRIAL`.
+* **Escalonamiento Dinámico:** Para `INDUSTRIAL`, se activa el escalón más alto cumplido:
   $$\text{Tarifa Aplicable} = \max_{\text{minCases} \le \text{casesQuantity}} \{ \text{ProductPrice}(\text{customerType}, \text{minCases}) \}$$
-* **Prohibición de Fallback Cruzado:** Si un producto no tiene tarifas registradas para el tipo de cliente solicitante (`customerType`), el sistema debe lanzar un error explícito. Bajo ninguna premisa se sustituirá un precio `RETAIL` por uno `INDUSTRIAL` ni viceversa.
+* **Snapshotting Financiero Inmutable:** Una vez confirmada la compra, `OrderItem.unitPrice` y `OrderItem.subtotal` se congelan en la base de datos de manera inmutable frente a cambios posteriores del catálogo.
 
-### Invariante 4: Dualidad Logística y Política de Fletes
-* **Modalidad Estándar (`STANDARD`):**
-  * Pedido mínimo por defecto: $\ge 3$ cajas (`logistics_min_cases_standard`).
-  * Costo de flete: **$0 COP** (flete subsidiado incluido con el cumplimiento del MOQ).
-* **Modalidad Express Nocturna (`EXPRESS_EMERGENCY`):**
-  * Pedido mínimo por defecto: $\ge 1$ caja (`logistics_min_cases_express`).
-  * Costo de flete: **$35.000 COP** (`logistics_express_fee_cop`) o tarifa configurable.
-* **Gobernanza Dinámica:** Ambos umbrales y el valor del flete provienen de la configuración del sistema (`SystemConfig`) y sus valores pasados por parámetro anulan los valores por defecto.
+### Invariante 4: Dualidad Logística y Protocolo de Reprogramación Prioritaria
+* **`STANDARD`:** MOQ $\ge 3$ cajas (`logistics_min_cases_standard`), flete **$0 COP**.
+* **`EXPRESS_EMERGENCY`:** MOQ $\ge 1$ caja (`logistics_min_cases_express`), flete **$35.000 COP** (`logistics_express_fee_cop`).
+* **Protocolo de Reprogramación:** Ante saturación nocturna, un `ADMIN` o `SUPERVISOR` puede reprogramar un pedido express a primera hora del día siguiente aplicando un **descuento compensatorio de $10.000 COP** (`logistics_express_reschedule_discount_cop`), manteniendo la orden en estado `PENDING`, agregando notas prioritarias e informando al cliente. Se previene estrictamente la doble reprogramación.
 
-### Invariante 5: Validación de Pasarelas de Pago Habilitadas
-* Todo método de pago seleccionado (`CASH_ON_DELIVERY`, `BANK_TRANSFER`, `CREDIT_CARD`) debe contrastarse contra su bandera booleana activa en `SystemConfig`.
-* Si la pasarela está deshabilitada (`false`), la orden no puede procesarse y debe abortar con un mensaje amigable al comprador.
+### Invariante 5: Integridad Transaccional de Inventario y Control de Pasarelas
+* **En Checkout:** El stock requerido se verifica y debita de `Product.stockCases` de forma atómica. Si algún ítem no posee stock suficiente, toda la orden aborta sin efectos secundarios.
+* **En Cancelación:** Si la orden está en estado `PENDING` y se cancela, el stock reservado se reintegra íntegramente a `Product.stockCases`.
+* **Pasarelas de Pago:** El checkout rechaza la orden si el método seleccionado se encuentra desactivado en `SystemConfig`.
 
 ---
 
 ## 3. Precondiciones y Postcondiciones del Sistema
 
-A continuación se detalla el contrato formal de entrada y salida para cada función pura del dominio:
+### 3.1. Costura de Dominio (Fase 1: `order.rules.ts`)
+* `validateMinimumOrderQuantity(totalCases, deliveryType, minCasesStandard?, minCasesExpress?)`: Lanza `Error` si no alcanza el umbral de cajas para la modalidad.
+* `calculateShippingFee(deliveryType, expressFeeCop?)`: Retorna `0` para `STANDARD` o `expressFeeCop` para `EXPRESS_EMERGENCY`.
+* `resolveTieredUnitPrice(prices, customerType, casesQuantity)`: Resuelve tarifa unitaria o lanza error si no existen precios para el tipo de cliente.
+* `generateOrderCode(date?)`: Genera string de 13 caracteres con patrón Crockford Base32.
+* `getPaymentMethodConfigKey(paymentMethod)`: Retorna la clave de configuración asociada.
+* `validatePaymentMethodActive(paymentMethod, isEnabled)`: Lanza error si `isEnabled === false`.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                        CONTRATOS DE ENTRADA Y SALIDA                                   │
-└────────────────────────────────────────────────────────────────────────────────────────┘
-```
+### 3.2. Costura de Servicios e Integración (Fase 2: `order.service.ts` y `system-config.service.ts`)
 
-### 3.1. `validateMinimumOrderQuantity(totalCases, deliveryType, minCasesStandard?, minCasesExpress?)`
-
+#### A. `OrderService.checkout(customerId, customerType, input)`
 * **Precondiciones:**
-  * `totalCases` es un valor numérico finito.
-  * `deliveryType` es una cadena válida: `"STANDARD"` o `"EXPRESS_EMERGENCY"`.
-  * `minCasesStandard` (opcional, default: `3`) es un entero $\ge 1$.
-  * `minCasesExpress` (opcional, default: `1`) es un entero $\ge 1$.
+  * `customerId` existe y pertenece a un cliente válido en `customers`.
+  * `input.deliveryPlaceId` pertenece al `customerId`.
+  * `input.items` tiene al menos 1 ítem con `productId` existente y `casesQuantity >= 1`.
+  * `input.paymentMethod` está activo en `SystemConfig`.
+  * `Product.stockCases >= item.casesQuantity` para todos los productos solicitados.
 * **Postcondiciones (Éxito):**
-  * Retorna `void` (ejecución sin interrupciones).
+  * Se inserta registro en tabla `orders` con estado `"PENDING"` y código único `ORD-YYMM-XXXX`.
+  * Se insertan registros en `order_items` con `unitPrice` congelado al momento de compra.
+  * Se descuenta `casesQuantity` de `Product.stockCases` para cada ítem.
 * **Postcondiciones (Fallo):**
-  * Lanza `Error` con mensaje descriptivo si:
-    * `deliveryType === "STANDARD"` y `totalCases < minCasesStandard`.
-    * `deliveryType === "EXPRESS_EMERGENCY"` y `totalCases < minCasesExpress`.
+  * Lanza error y revierte operaciones si hay stock insuficiente, método inactivo o branch inválido.
+
+#### B. `OrderService.cancelOrder(orderId)`
+* **Precondiciones:**
+  * `orderId` existe en tabla `orders`.
+  * `order.status !== "CANCELLED"`.
+* **Postcondiciones (Éxito):**
+  * `order.status` muta a `"CANCELLED"`.
+  * Para cada `OrderItem`, se incrementa `Product.stockCases` con `casesQuantity`.
+  * Se invoca `notificationPort.notifyOrderCancelled`.
+
+#### C. `OrderService.rescheduleExpressOrder(orderId, adminReason?)`
+* **Precondiciones:**
+  * `orderId` existe y tiene `deliveryType === "EXPRESS_EMERGENCY"`.
+  * `order.status === "PENDING"`.
+  * `order.notes` NO contiene `"[REPROGRAMADO PRIORITARIO]"`.
+* **Postcondiciones (Éxito):**
+  * `order.shippingFee` se reduce en $10.000 COP (mínimo 0).
+  * `order.total` se reduce en $10.000 COP (mínimo 0).
+  * `order.notes` se actualiza con prefijo `"[REPROGRAMADO PRIORITARIO]"`.
+  * Se invoca `notificationPort.notifyExpressRescheduled`.
+
+#### D. `SystemConfigService.getNumber(key, defaultValue)` y `getBoolean(key, defaultValue)`
+* **Precondiciones:** Clave `key` en string.
+* **Postcondiciones:** Retorna el valor parseado tipado o `defaultValue` si la clave no existe en BD.
+
+#### E. `SystemConfigService.update(key, value)`
+* **Precondiciones:** `key` existe en `system_config`. `value` es coherente con `type` (`NUMBER` o `BOOLEAN`).
+* **Postcondiciones:** Actualiza el valor en BD con timestamp `updatedAt` actual y retorna el registro actualizado.
+
+### 3.3. Costura de Contratos API HTTP & Seguridad (Fase 3: Express Routes)
+* `POST /api/v1/orders/calculate-cart`:
+  * Permite acceso público o anónimo (`optionalAuthMiddleware`).
+  * Si viene autenticado, usa `req.user.customerType`; de lo contrario usa `req.body.customerType || "RETAIL"`.
+* `POST /api/v1/orders/checkout`:
+  * Requiere `authMiddleware` + `requireRoles("CUSTOMER")`.
+  * Retorna `401` si no hay token Bearer válido.
+  * Retorna `403` si el usuario no tiene rol `CUSTOMER`.
+  * Retorna `201` con la orden creada si es exitoso.
+* `POST /api/v1/orders/:id/reschedule-express`:
+  * Requiere `authMiddleware` + `requireRoles("ADMIN", "SUPERVISOR")`.
+  * Retorna `403` para usuarios `CUSTOMER`. Retorna `200` para `ADMIN` y `SUPERVISOR`.
+* `GET /api/v1/config` y `PUT /api/v1/config/:key`:
+  * `GET`: Requiere `ADMIN` o `SUPERVISOR` (200 OK). Deniega a `CUSTOMER` (403 Forbidden).
+  * `PUT`: Requiere exclusivamente `ADMIN` (200 OK). Deniega a `SUPERVISOR` y `CUSTOMER` (403 Forbidden).
 
 ---
 
-### 3.2. `calculateShippingFee(deliveryType, expressFeeCop?)`
+## 4. Contrato de Mensajes de Error y Mapeo de Códigos HTTP
 
-* **Precondiciones:**
-  * `deliveryType` es `"STANDARD"` o `"EXPRESS_EMERGENCY"`.
-  * `expressFeeCop` (opcional, default: `35000`) es un número entero $\ge 0$.
-* **Postcondiciones (Éxito):**
-  * Retorna `0` si `deliveryType === "STANDARD"`.
-  * Retorna el valor de `expressFeeCop` (ej. `35000`) si `deliveryType === "EXPRESS_EMERGENCY"`.
-* **Postcondiciones (Fallo):**
-  * No produce fallos para entradas válidas del tipo.
-
----
-
-### 3.3. `resolveTieredUnitPrice(prices, customerType, casesQuantity)`
-
-* **Precondiciones:**
-  * `prices` es un arreglo de `ProductPrice` asociados a un mismo `productId`.
-  * `customerType` es `"RETAIL"` o `"INDUSTRIAL"`.
-  * `casesQuantity` es un número entero $\ge 1$.
-* **Postcondiciones (Éxito):**
-  * Retorna un objeto `{ unitPrice: number, appliedMinCases: number }` donde:
-    * `unitPrice` corresponde al precio del escalón más ventajoso que cumpla `casesQuantity >= minCases`.
-    * `appliedMinCases` indica el umbral del escalón activado.
-    * Si la cantidad es inferior al menor `minCases`, aplica como fallback el escalón base (menor `minCases`) de ese `customerType`.
-* **Postcondiciones (Fallo):**
-  * Lanza `Error("No prices configured for customer type <customerType>")` si no existe ningún precio para ese segmento.
-
----
-
-### 3.4. `generateOrderCode(date?)`
-
-* **Precondiciones:**
-  * `date` (opcional, default: `new Date()`) es una instancia válida de `Date`.
-* **Postcondiciones (Éxito):**
-  * Retorna un `string` de longitud exactamente igual a 13 caracteres.
-  * Los primeros 4 caracteres coinciden con `ORD-`.
-  * Los caracteres 5 al 8 representan `YYMM` de la fecha provista.
-  * El carácter 9 es un guion `-`.
-  * Los caracteres 10 al 13 son 4 símbolos tomados exclusivamente del alfabeto Crockford Base32 `[23456789ABCDEFGHJKMNPQRSTVWXYZ]`.
-* **Postcondiciones (Fallo):**
-  * No produce fallos para fechas válidas.
-
----
-
-### 3.5. `getPaymentMethodConfigKey(paymentMethod)`
-
-* **Precondiciones:**
-  * `paymentMethod` es `"CASH_ON_DELIVERY"`, `"BANK_TRANSFER"`, `"CREDIT_CARD"` o `"CREDIT"`.
-* **Postcondiciones (Éxito):**
-  * Retorna `"payment_cod_enabled"` para `"CASH_ON_DELIVERY"`.
-  * Retorna `"payment_bank_transfer_enabled"` para `"BANK_TRANSFER"`.
-  * Retorna `"payment_credit_card_enabled"` para `"CREDIT_CARD"` o `"CREDIT"`.
-* **Postcondiciones (Fallo):**
-  * Lanza `Error("Método de pago no reconocido: <paymentMethod>")` si el método no está tipado o es inválido.
-
----
-
-### 3.6. `validatePaymentMethodActive(paymentMethod, isEnabled)`
-
-* **Precondiciones:**
-  * `paymentMethod` es un método de pago soportado.
-  * `isEnabled` es un booleano (`true` o `false`).
-* **Postcondiciones (Éxito):**
-  * Retorna `void` si `isEnabled === true`.
-* **Postcondiciones (Fallo):**
-  * Lanza `Error("El método de pago '<Nombre Amigable>' se encuentra temporalmente inactivo.")` si `isEnabled === false`.
-
----
-
-## 4. Contrato de Mensajes de Error
-
-Para mantener una experiencia de usuario (UX) coherente en el frontend y evitar mensajes crípticos o técnicos, las funciones de dominio emiten mensajes estandarizados bajo el siguiente contrato:
-
-| Código Interno | Disparador de la Falla | Mensaje Canónico Emitido por el Dominio | Texto Recomendado para Toast/Alert UI | Código HTTP Mapeable |
+| Código Interno | Capa | Disparador de la Falla | Mensaje Canónico Emitido | Código HTTP |
 | :--- | :--- | :--- | :--- | :--- |
-| `ERR_MOQ_STANDARD` | `STANDARD` y `totalCases < minCasesStandard` | `Pedido mínimo no alcanzado: El despacho estándar requiere al menos {minCasesStandard} cajas (solicitadas: {totalCases}).` | *"El pedido estándar requiere mínimo {minCasesStandard} cajas para despacho gratuito. Añade más cajas a tu carrito."* | `400 Bad Request` |
-| `ERR_MOQ_EXPRESS` | `EXPRESS_EMERGENCY` y `totalCases < minCasesExpress` | `Pedido mínimo no alcanzado: El despacho express nocturno requiere al menos {minCasesExpress} caja (solicitadas: {totalCases}).` | *"El pedido express requiere al menos {minCasesExpress} caja para despachar de inmediato."* | `400 Bad Request` |
-| `ERR_NO_PRICES_SEGMENT` | Catálogo sin precios para el `customerType` | `No prices configured for customer type {customerType}` | *"No hay lista de precios configurada para tu tipo de cuenta ({customerType}). Contacta a tu asesor comercial."* | `422 Unprocessable` |
-| `ERR_PAYMENT_INACTIVE` | Método de pago con bandera `isEnabled === false` | `El método de pago '{friendlyName}' se encuentra temporalmente inactivo.` | *"El método de pago '{friendlyName}' no está disponible temporalmente. Por favor selecciona otro medio de pago."* | `400 Bad Request` |
-| `ERR_PAYMENT_UNKNOWN` | Cadena de método de pago no registrada | `Método de pago no reconocido: {paymentMethod}` | *"Método de pago no admitido por el sistema."* | `400 Bad Request` |
-
-### Mapeo de Nombres Amigables de Pasarelas:
-* `CASH_ON_DELIVERY` $\to$ `"Contra Entrega (Efectivo/Datáfono)"`
-* `BANK_TRANSFER` $\to$ `"Transferencia Bancaria"`
-* `CREDIT_CARD` / `CREDIT` $\to$ `"Tarjeta de Crédito / Pasarela"`
+| `ERR_MOQ_STANDARD` | Dominio | `STANDARD` y `totalCases < minCasesStandard` | `Pedido mínimo no alcanzado: El despacho estándar requiere al menos {minStd} cajas (solicitadas: {solic}).` | `400 Bad Request` |
+| `ERR_MOQ_EXPRESS` | Dominio | `EXPRESS_EMERGENCY` y `totalCases < minCasesExpress` | `Pedido mínimo no alcanzado: El despacho express nocturno requiere al menos {minExp} caja (solicitadas: {solic}).` | `400 Bad Request` |
+| `ERR_NO_PRICES_SEGMENT` | Dominio | Producto sin precios para `customerType` | `No prices configured for customer type {customerType}` | `422 Unprocessable` |
+| `ERR_PAYMENT_INACTIVE` | Dominio | Bandera de pasarela en `false` | `El método de pago '{friendlyName}' se encuentra temporalmente inactivo.` | `400 Bad Request` |
+| `ERR_INSUFFICIENT_STOCK` | Servicio | `stockCases < casesQuantity` | `Insufficient stock for "{prodName}". Requested: {qty} cases, Available: {stock} cases.` | `400 Bad Request` |
+| `ERR_INVALID_BRANCH` | Servicio | DeliveryPlace no pertenece al cliente | `Invalid delivery branch selected for this customer` | `400 Bad Request` |
+| `ERR_ALREADY_CANCELLED` | Servicio | Orden ya cancelada | `Order is already cancelled` | `400 Bad Request` |
+| `ERR_ALREADY_RESCHEDULED` | Servicio | Exceso de reprogramación express | `This express order has already been rescheduled` | `400 Bad Request` |
+| `ERR_NOT_EXPRESS` | Servicio | Reprogramar orden estándar | `Only orders with EXPRESS_EMERGENCY delivery type can be rescheduled under this protocol` | `400 Bad Request` |
+| `ERR_NOT_PENDING` | Servicio | Reprogramar orden no PENDING | `Cannot reschedule order in status '{status}'. Only PENDING orders can be rescheduled.` | `400 Bad Request` |
+| `ERR_AUTH_REQUIRED` | HTTP | Sin cabecera `Authorization: Bearer <token>` | `Authentication token required` | `401 Unauthorized` |
+| `ERR_FORBIDDEN_ROLE` | HTTP | Token válido pero rol no autorizado | `Forbidden: insufficient permissions` | `403 Forbidden` |
+| `ERR_NOT_OWN_ORDER` | HTTP | Customer intentando ver orden ajena | `Forbidden: Not your order` | `403 Forbidden` |
 
 ---
 
 ## 5. Criterios de Aceptación en Formato Gherkin
 
-### Característica 1: Validación de Cantidad Mínima de Pedido (MOQ Dinámico)
+### 5.1. FASE 1: Reglas de Dominio Puro (`server/tests/unit/order.rules.test.ts`)
+
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 1]
 ```gherkin
-Característica: Validación de Cantidad Mínima de Pedido (MOQ)
+Característica: [PRIORITARIO-U1] Validación de Cantidad Mínima de Pedido (MOQ Dinámico)
   Como motor de reglas de checkout
-  Quiero verificar que el pedido cumpla con el umbral mínimo de cajas según la modalidad
-  Para optimizar los costos de ruta y despacho
+  Quiero validar el cumplimiento del pedido mínimo según la modalidad logística
+  Para optimizar los despachos y costos operativos
 
-  # ---------------------------------------------------------
-  # DESPACHO ESTÁNDAR
-  # ---------------------------------------------------------
-  Escenario: Pedido estándar cumple exactamente el MOQ por defecto
-    Dado que el cliente selecciona modalidad de despacho "STANDARD"
-    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
-    Cuando el cliente agrega un total de 3 cajas al pedido
-    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
+  Escenario: Validación exitosa de pedido estándar con MOQ por defecto (3 cajas)
+    Dado que se solicita despacho "STANDARD" con 3 cajas
+    Cuando se valida la cantidad mínima de pedido
+    Entonces la validación debe completarse sin arrojar errores
 
-  Escenario: Pedido estándar supera holgadamente el MOQ por defecto
-    Dado que el cliente selecciona modalidad de despacho "STANDARD"
-    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
-    Cuando el cliente agrega un total de 12 cajas al pedido
-    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
+  Escenario: Rechazo de pedido estándar con menos de 3 cajas
+    Dado que se solicita despacho "STANDARD" con 2 cajas
+    Cuando se valida la cantidad mínima de pedido
+    Entonces debe lanzar un error indicando que se requieren al menos 3 cajas
 
-  Escenario: Pedido estándar no alcanza el MOQ por defecto (Límite inferior)
-    Dado que el cliente selecciona modalidad de despacho "STANDARD"
-    Y los parámetros del sistema definen un pedido mínimo estándar de 3 cajas
-    Cuando el cliente intenta enviar un pedido con 2 cajas
-    Entonces el sistema debe rechazar el pedido con el error:
-      """
-      Pedido mínimo no alcanzado: El despacho estándar requiere al menos 3 cajas (solicitadas: 2).
-      """
-
-  Escenario: Pedido estándar con cero cajas
-    Dado que el cliente selecciona modalidad de despacho "STANDARD"
-    Cuando el cliente intenta enviar un pedido con 0 cajas
-    Entonces el sistema debe rechazar el pedido con el error:
-      """
-      Pedido mínimo no alcanzado: El despacho estándar requiere al menos 3 cajas (solicitadas: 0).
-      """
-
-  # ---------------------------------------------------------
-  # DESPACHO EXPRESS NOCTURNO
-  # ---------------------------------------------------------
-  Escenario: Pedido express nocturno cumple el MOQ por defecto
-    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
-    Y los parámetros del sistema definen un pedido mínimo express de 1 caja
-    Cuando el cliente agrega 1 caja de emergencia al pedido
-    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
-
-  Escenario: Pedido express nocturno con volumen mayor
-    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
-    Cuando el cliente agrega 4 cajas de emergencia al pedido
-    Entonces la validación de MOQ debe ser exitosa sin lanzar errores
-
-  Escenario: Pedido express nocturno con cero cajas
-    Dado que el cliente selecciona modalidad de despacho "EXPRESS_EMERGENCY"
-    Y los parámetros del sistema definen un pedido mínimo express de 1 caja
-    Cuando el cliente intenta enviar un pedido con 0 cajas
-    Entonces el sistema debe rechazar el pedido con el error:
-      """
-      Pedido mínimo no alcanzado: El despacho express nocturno requiere al menos 1 caja (solicitadas: 0).
-      """
-
-  # ---------------------------------------------------------
-  # PARÁMETROS DINÁMICOS DE SYSTEMCONFIG
-  # ---------------------------------------------------------
-  Escenario: Parámetro dinámico de SystemConfig eleva el MOQ estándar a 5 cajas
-    Dado que el administrador configuró "logistics_min_cases_standard" en 5
-    Y el cliente selecciona modalidad "STANDARD"
-    Cuando el cliente agrega 4 cajas al pedido
-    Entonces el sistema debe rechazar el pedido indicando que se requieren 5 cajas
-    Pero si el cliente agrega 5 cajas la validación debe ser aprobada
-
-  Escenario: Parámetro dinámico de SystemConfig eleva el MOQ express a 2 cajas
-    Dado que el administrador configuró "logistics_min_cases_express" en 2
-    Y el cliente selecciona modalidad "EXPRESS_EMERGENCY"
-    Cuando el cliente agrega 1 caja al pedido
-    Entonces el sistema debe rechazar el pedido indicando que se requieren 2 caja
-    Pero si el cliente agrega 2 cajas la validación debe ser aprobada
+  Escenario: Aprobación de pedido express nocturno con 1 caja
+    Dado que se solicita despacho "EXPRESS_EMERGENCY" con 1 caja
+    Cuando se valida la cantidad mínima de pedido
+    Entonces la validación debe completarse exitosamente
 ```
 
----
-
-### Característica 2: Cálculo de Fletes para Logística Dual
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 1]
 ```gherkin
-Característica: Cálculo de Fletes para Logística Dual
-  Como motor de tarifación financiera
-  Quiero calcular el costo de envío exacto según la urgencia del despacho
-  Para cobrar el recargo operativo adecuado o bonificar el envío estándar
+Característica: [PRIORITARIO-U2] Resolución de Precios Unitarios Escalonados por Segmento
+  Como motor de tarifas de catálogo
+  Quiero resolver el precio unitario exacto por volumen y tipo de cliente
+  Para aplicar precios justos y proteger el margen mayorista
 
-  Escenario: Flete gratuito para despacho estándar por defecto
-    Dado que el pedido tiene modalidad "STANDARD"
-    Cuando se calcula el costo de flete
-    Entonces el valor del flete debe ser exactamente 0 COP
-
-  Escenario: Flete estándar permanece en cero incluso si se pasa parámetro express
-    Dado que el pedido tiene modalidad "STANDARD"
-    Y la tarifa express configurada es de 45000 COP
-    Cuando se calcula el costo de flete
-    Entonces el valor del flete debe mantenerse en 0 COP
-
-  Escenario: Recargo fijo para despacho express nocturno por defecto
-    Dado que el pedido tiene modalidad "EXPRESS_EMERGENCY"
-    Cuando se calcula el costo de flete sin especificar recargo personalizado
-    Entonces el valor del flete retornado debe ser de 35000 COP
-
-  Escenario: Recargo dinámico para despacho express nocturno desde SystemConfig
-    Dado que el pedido tiene modalidad "EXPRESS_EMERGENCY"
-    Y el valor dinámico de "logistics_express_fee_cop" es 42000 COP
-    Cuando se calcula el costo de flete pasando 42000 COP
-    Entonces el valor del flete retornado debe ser de 42000 COP
-```
-
----
-
-### Característica 3: Resolución de Precios Unitarios Escalonados (Tiered Pricing) y Aislamiento de Segmentos
-```gherkin
-Característica: Resolución de Precios Unitarios Escalonados por Volumen
-  Como motor de catálogo y fijación de precios
-  Quiero aplicar la tarifa por caja según el tipo de cliente y el volumen adquirido
-  Para recompensar a clientes mayoristas y mantener la integridad comercial
-
-  # ---------------------------------------------------------
-  # SEGMENTO RETAIL (PRECIO PLANO INDEPENDIENTE DEL VOLUMEN)
-  # ---------------------------------------------------------
-  Escenario: Cliente RETAIL comprando volumen bajo
-    Dado un producto con precio RETAIL de 150000 COP (minCases: 1)
-    Y precios INDUSTRIAL escalonados a menor costo
-    Cuando un cliente tipo "RETAIL" compra 1 caja
-    Entonces el precio unitario liquidado debe ser 150000 COP
-    Y el escalón aplicado debe ser minCases 1
-
-  Escenario: Cliente RETAIL comprando gran volumen no accede a tarifas INDUSTRIAL
-    Dado un producto con precio RETAIL de 150000 COP (minCases: 1)
-    Y un escalón INDUSTRIAL de 110000 COP para más de 10 cajas
-    Cuando un cliente tipo "RETAIL" compra 20 cajas
-    Entonces el precio unitario liquidado debe permanecer en 150000 COP
-    Y en ningún caso debe descender a 110000 COP
-
-  # ---------------------------------------------------------
-  # SEGMENTO INDUSTRIAL (VOLUMEN ESCALONADO)
-  # ---------------------------------------------------------
-  Escenario: Cliente INDUSTRIAL comprando en Escalón 1 (Volumen Base)
-    Dado los siguientes escalones para cliente INDUSTRIAL:
-      | minCases | unitPrice (COP) |
-      | 1        | 130000          |
-      | 5        | 120000          |
-      | 10       | 110000          |
-    Cuando un cliente tipo "INDUSTRIAL" compra 3 cajas
-    Entonces el precio unitario liquidado debe ser 130000 COP
-    Y el escalón aplicado debe ser minCases 1
-
-  Escenario: Cliente INDUSTRIAL comprando en Escalón 2 (Umbral Intermedio)
-    Dado los mismos escalones para cliente INDUSTRIAL
-    Cuando un cliente tipo "INDUSTRIAL" compra exactamente 5 cajas
-    Entonces el precio unitario liquidado debe ser 120000 COP
+  Escenario: Cliente INDUSTRIAL accede a tarifa con descuento al superar 5 cajas
+    Dado un producto con tarifas INDUSTRIAL: 1 caja a $130.000 COP y 5 cajas a $120.000 COP
+    Cuando un cliente "INDUSTRIAL" cotiza 6 cajas
+    Entonces el precio unitario resuelto debe ser $120.000 COP
     Y el escalón aplicado debe ser minCases 5
 
-  Escenario: Cliente INDUSTRIAL comprando en Escalón 2 (Rango Intermedio)
-    Dado los mismos escalones para cliente INDUSTRIAL
-    Cuando un cliente tipo "INDUSTRIAL" compra 8 cajas
-    Entonces el precio unitario liquidado debe ser 120000 COP
-    Y el escalón aplicado debe ser minCases 5
-
-  Escenario: Cliente INDUSTRIAL comprando en Escalón 3 (Volumen Máximo)
-    Dado los mismos escalones para cliente INDUSTRIAL
-    Cuando un cliente tipo "INDUSTRIAL" compra 15 cajas
-    Entonces el precio unitario liquidado debe ser 110000 COP
-    Y el escalón aplicado debe ser minCases 10
-
-  # ---------------------------------------------------------
-  # MANEJO DE EXCEPCIONES Y SEGURIDAD DE SEGMENTO
-  # ---------------------------------------------------------
-  Escenario: Intento de cotizar producto sin matriz de precios para el segmento
-    Dado un producto que únicamente cuenta con tarifas para clientes "RETAIL"
-    Cuando se solicita resolver el precio unitario para un cliente "INDUSTRIAL" con 2 cajas
-    Entonces el sistema debe fallar inmediatamente con el error:
-      """
-      No prices configured for customer type INDUSTRIAL
-      """
+  Escenario: Cliente RETAIL mantiene precio base sin importar el volumen
+    Dado un producto con tarifa RETAIL: 1 caja a $150.000 COP
+    Cuando un cliente "RETAIL" cotiza 15 cajas
+    Entonces el precio unitario resuelto debe mantenerse en $150.000 COP
 ```
+
+#### [ESCENARIOS COMPLEMENTARIOS FASE 1 - PARA EL USUARIO]
+* `SCN-SHP-01`: Flete gratuito ($0 COP) para despacho estándar.
+* `SCN-SHP-02`: Recargo fijo de $35.000 COP para despacho express nocturno.
+* `SCN-COD-01`: Generación de código `ORD-YYMM-XXXX` con longitud 13 y fecha cronológica.
+* `SCN-COD-02`: Ausencia estricta de caracteres ambiguos (I, L, O, U, 0, 1) en Crockford Base32.
+* `SCN-PAY-01`: Validación y rechazo de pasarela desactivada en `SystemConfig`.
 
 ---
 
-### Característica 4: Generación y Validación de Código Crockford Base32
+### 5.2. FASE 2: Servicios e Integración con Base de Datos (`server/tests/integration/`)
+
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 2]
 ```gherkin
-Característica: Generación Canónica de Códigos de Pedido
-  Como sistema transaccional
-  Quiero generar identificadores de pedido concisos, cronológicos y legibles
-  Para que clientes y operarios puedan dictarlos al teléfono sin confusiones
+Característica: [PRIORITARIO-I1] Checkout Transaccional con Descuento Atómico de Stock e Inserción de Items
+  Como servicio central de pedidos (OrderService)
+  Quiero procesar el checkout de un cliente descontando el inventario físico en bodega
+  Para garantizar la consistencia transaccional y congelar los precios pactados
 
-  Escenario: Código generado cumple longitud exacta y prefijo cronológico
-    Dado que la orden se genera el 23 de Noviembre de 2026
-    Cuando se invoca la función de generación de código con esa fecha
-    Entonces el código retornado debe tener exactamente 13 caracteres de longitud
-    Y debe comenzar con el prefijo "ORD-2611-"
-    Y debe finalizar con un bloque aleatorio de 4 caracteres alfanuméricos válidos
+  Escenario: Checkout exitoso descuenta stock en bodega y graba snapshot de precios
+    Dado un cliente registrado con ID 1 tipo "INDUSTRIAL"
+    Y un DeliveryPlace registrado con ID 10 perteneciente al cliente 1
+    Y un producto "Whisky Buchanan's 12" con stock de 50 cajas y tarifa de $120.000 COP para >=5 cajas
+    Cuando el cliente realiza checkout solicitando 6 cajas con entrega "STANDARD"
+    Entonces se debe crear una nueva orden en estado "PENDING"
+    Y el stock disponible del producto en bodega debe reducirse exactamente a 44 cajas
+    Y la orden debe contener 1 item con casesQuantity 6 y unitPrice congelado en $120.000 COP
+    Y el total de la orden debe ser exactamente $720.000 COP ($120.000 * 6 + $0 flete)
 
-  Escenario: Ausencia total de caracteres ambiguos (I, L, O, U, 0, 1) en múltiples iteraciones
-    Dado un proceso de generación masiva de 100 códigos consecutivos
-    Cuando se analiza la porción aleatoria de cada código generado
-    Entonces ninguno de los códigos debe contener los caracteres "I", "L", "O", "U" (mayúsculas o minúsculas)
-    Y ninguno de los códigos debe contener dígitos ambiguos "0" o "1"
-    Y cada código debe coincidir fielmente con el patrón regex:
-      """
-      ^ORD-\d{2}(0[1-9]|1[0-2])-[23456789ABCDEFGHJKMNPQRSTVWXYZ]{4}$
-      """
+  Escenario: Rechazo de checkout por stock insuficiente no debe mutar inventario
+    Dado un producto "Ron Zacapa 23" con solo 2 cajas disponibles en bodega
+    Cuando el cliente intenta realizar checkout solicitando 5 cajas
+    Entonces el servicio debe lanzar un error indicando "Insufficient stock"
+    Y el stock del producto en base de datos debe permanecer inalterado en 2 cajas
 ```
 
----
-
-### Característica 5: Validación de Pasarelas de Pago Activas contra SystemConfig
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 2]
 ```gherkin
-Característica: Validación de Pasarelas de Pago Habilitadas
-  Como pasarela de validación comercial
-  Quiero comprobar que el método de pago elegido esté encendido en la configuración
-  Para prevenir pedidos con métodos suspendidos por mantenimiento o liquidez
+Característica: [PRIORITARIO-I2] Protocolo de Reprogramación Prioritaria Express por Saturación Logística
+  Como administrador operativo
+  Quiero reprogramar una orden express nocturna para primera hora del día siguiente
+  Para compensar al cliente con un descuento en flete y priorizar su despacho ante saturación
 
-  Escenario: Mapeo correcto de métodos a claves de configuración
-    Cuando se solicita la clave de configuración para los siguientes métodos:
-      | paymentMethod      | expectedConfigKey                 |
-      | "CASH_ON_DELIVERY" | "payment_cod_enabled"             |
-      | "BANK_TRANSFER"    | "payment_bank_transfer_enabled"   |
-      | "CREDIT_CARD"      | "payment_credit_card_enabled"     |
-      | "CREDIT"           | "payment_credit_card_enabled"     |
-    Entonces la clave devuelta debe coincidir exactamente con el valor esperado
+  Escenario: Reprogramación express aplica compensación de $10.000 COP, muta notas y notifica
+    Dado una orden existente con código "ORD-2611-7B3K" en estado "PENDING"
+    Y modalidad de entrega "EXPRESS_EMERGENCY" con shippingFee de $35.000 COP y total de $155.000 COP
+    Cuando el administrador ejecuta rescheduleExpressOrder con motivo "Lluvia torrencial y saturación"
+    Entonces el shippingFee de la orden debe reducirse a $25.000 COP ($35.000 - $10.000)
+    Y el total de la orden debe reducirse a $145.000 COP
+    Y las notas de la orden deben contener "[REPROGRAMADO PRIORITARIO]"
+    Y el adaptador de notificaciones debe haber registrado el evento con el nuevo total y descuento
+    Y el estado de la orden debe mantenerse en "PENDING"
 
-  Escenario: Aprobación de métodos de pago activos
-    Dado que el método "CASH_ON_DELIVERY" tiene bandera de habilitación en true
-    Cuando se valida el método de pago
-    Entonces la validación no debe emitir ninguna excepción
-
-  Escenario: Rechazo de método Contra Entrega temporalmente inactivo
-    Dado que el método "CASH_ON_DELIVERY" se encuentra deshabilitado (false)
-    Cuando se valida el método de pago
-    Entonces el sistema debe abortar con el mensaje:
-      """
-      El método de pago 'Contra Entrega (Efectivo/Datáfono)' se encuentra temporalmente inactivo.
-      """
-
-  Escenario: Rechazo de método Transferencia Bancaria inactivo
-    Dado que el método "BANK_TRANSFER" se encuentra deshabilitado (false)
-    Cuando se valida el método de pago
-    Entonces el sistema debe abortar con el mensaje:
-      """
-      El método de pago 'Transferencia Bancaria' se encuentra temporalmente inactivo.
-      """
-
-  Escenario: Rechazo de método no reconocido por el sistema
-    Dado un método de pago desconocido o no soportado "BITCOIN_LIGHTNING"
-    Cuando se intenta obtener su clave de configuración
-    Entonces el sistema debe arrojar un error indicando "Método de pago no reconocido: BITCOIN_LIGHTNING"
+  Escenario: Prevención estricta de doble reprogramación express
+    Dado una orden express que ya fue reprogramada y contiene "[REPROGRAMADO PRIORITARIO]" en sus notas
+    Cuando se intenta ejecutar nuevamente rescheduleExpressOrder sobre dicha orden
+    Entonces el servicio debe abortar con el error "This express order has already been rescheduled"
 ```
+
+#### [ESCENARIOS COMPLEMENTARIOS FASE 2 - PARA EL USUARIO]
+* `SCN-INT-CAN-01`: `cancelOrder` restituye atómicamente el stock de cajas a la tabla `products` y muta estado a `"CANCELLED"`.
+* `SCN-INT-CAN-02`: `cancelOrder` rechaza cancelar órdenes que ya se encuentren en estado `"CANCELLED"`.
+* `SCN-INT-CHK-03`: `checkout` rechaza la transacción si el método de pago seleccionado está inactivo en `SystemConfig`.
+* `SCN-INT-CRT-01`: `calculateCart` simula correctamente el carrito de compra leyendo dinámicamente umbrales de `SystemConfig`.
+* `SCN-INT-CFG-01`: `SystemConfigService.getNumber` y `getBoolean` devuelven valores con fallback ante claves inexistentes.
+* `SCN-INT-CFG-02`: `SystemConfigService.update` valida y actualiza parámetros dinámicos con tipos correctos.
 
 ---
 
-## 6. Datos Canónicos de Prueba (Fixtures de Referencia)
+### 5.3. FASE 3: Contratos de API HTTP & Seguridad RBAC (`server/tests/api/`)
 
-Para garantizar consistencia y repetibilidad en toda la suite de pruebas automatizadas, se definen los siguientes fixtures canónicos en TypeScript:
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 3]
+```gherkin
+Característica: [PRIORITARIO-A1] Matriz de Autenticación y Autorización en POST /api/v1/orders/checkout
+  Como gateway de seguridad de la API
+  Quiero validar estrictamente el token JWT y el rol del usuario en el endpoint de checkout
+  Para asegurar que solo compradores legítimos generen compras
+
+  Escenario: Rechazo de solicitud sin cabecera Authorization (401 Unauthorized)
+    Dado que un cliente realiza un POST a "/api/v1/orders/checkout" sin token Bearer
+    Cuando se procesa la petición
+    Entonces el servidor debe responder con código de estado HTTP 401
+    Y la respuesta debe incluir el mensaje "Authentication token required"
+
+  Escenario: Rechazo para usuarios con roles no-CUSTOMER (403 Forbidden)
+    Dado un usuario autenticado con token válido cuyo rol es "SUPERVISOR"
+    Cuando intenta enviar un POST a "/api/v1/orders/checkout"
+    Entonces el servidor debe responder con código de estado HTTP 403
+    Y la respuesta debe indicar "Forbidden: insufficient permissions"
+
+  Escenario: Checkout exitoso para usuario con rol CUSTOMER (201 Created)
+    Dado un usuario autenticado con token Bearer válido, rol "CUSTOMER" y customerId 1
+    Y un payload válido con deliveryPlaceId y al menos 1 ítem con stock suficiente
+    Cuando envía un POST a "/api/v1/orders/checkout"
+    Entonces el servidor debe responder con código HTTP 201 Created
+    Y la respuesta JSON debe contener el objeto de la orden creada con su código "ORD-"
+```
+
+#### [AGENTE 2 - MUESTRA PRIORITARIA FASE 3]
+```gherkin
+Característica: [PRIORITARIO-A2] Control de Acceso RBAC en POST /api/v1/orders/:id/reschedule-express
+  Como controlador administrativo
+  Quiero restringir la reprogramación de emergencias exclusivamente a administradores y supervisores
+  Para prevenir manipulaciones comerciales o autofacturación de descuentos por clientes
+
+  Escenario: Rechazo de reprogramación para rol CUSTOMER (403 Forbidden)
+    Dado un usuario autenticado con rol "CUSTOMER"
+    Cuando envía una petición POST a "/api/v1/orders/1/reschedule-express"
+    Entonces el servidor debe responder con código de estado HTTP 403
+    Y denegar el acceso a la operación
+
+  Escenario: Aprobación de reprogramación para rol ADMIN o SUPERVISOR (200 OK)
+    Dado un usuario autenticado con rol "ADMIN" o "SUPERVISOR"
+    Y una orden express pendiente en base de datos con ID 1
+    Cuando envía una petición POST a "/api/v1/orders/1/reschedule-express" con motivo operativo
+    Entonces el servidor debe responder con código de estado HTTP 200 OK
+    Y el cuerpo de respuesta debe confirmar la orden con el flete y total descontados
+```
+
+#### [ESCENARIOS COMPLEMENTARIOS FASE 3 - PARA EL USUARIO]
+* `SCN-API-CRT-01`: `POST /api/v1/orders/calculate-cart` permite acceso anónimo (sin token) devolviendo precios calculados para `RETAIL`.
+* `SCN-API-CRT-02`: `POST /api/v1/orders/calculate-cart` con Bearer token de cliente `INDUSTRIAL` resuelve automáticamente precios mayoristas sin necesidad de especificar `customerType` en el body.
+* `SCN-API-CFG-01`: `GET /api/v1/config` permite acceso a `ADMIN` y `SUPERVISOR` (200 OK) y bloquea a `CUSTOMER` (403 Forbidden).
+* `SCN-API-CFG-02`: `PUT /api/v1/config/:key` permite acceso exclusivamente a rol `ADMIN` (200 OK) y bloquea a rol `SUPERVISOR` (403 Forbidden).
+
+---
+
+## 6. Datos Canónicos de Prueba y Fixtures de Referencia
+
+### 6.1. Fixtures en Memoria para Dominio Puro (Fase 1)
+Definidos en [`server/tests/unit/order.rules.test.ts`](file:///C:/_code/licores-crm/server/tests/unit/order.rules.test.ts) con precios base e inventarios mockeados:
+* Buchanan's 12: Retail $150.000 / Industrial 1 caja $130.000, 5 cajas $120.000, 10 cajas $110.000.
+* Zacapa 23: Retail $142.000 / Industrial 1 caja $130.000, 3 cajas $122.000.
+
+### 6.2. Fixtures de Base de Datos para Integración y API (`server/data.test.db`)
+
+Para poblar la base de datos de test (`data.test.db`) antes de las suites de Fase 2 y 3:
 
 ```typescript
-// Fixtures de Referencia Canónicos (In-Memory Data)
+// Fixtures canónicos para pruebas en server/data.test.db
 
-export interface CanonicalProductFixture {
-  id: number;
-  sku: string;
-  name: string;
-  category: string;
-  stockCases: number;
-  bottlesPerCase: number;
-}
-
-export interface CanonicalPriceFixture {
-  id: number;
-  productId: number;
-  customerType: "RETAIL" | "INDUSTRIAL";
-  minCases: number;
-  unitPrice: number;
-}
-
-/**
- * Catálogo Canónico de Productos para Pruebas Unitarias
- */
-export const FIXTURE_PRODUCTS: Record<string, CanonicalProductFixture> = {
-  BUCHANANS_12: {
-    id: 101,
-    sku: "WHI-BUCH12-C12",
-    name: "Whisky Buchanan's Deluxe 12 Años",
-    category: "Whisky",
-    stockCases: 50,
-    bottlesPerCase: 12,
-  },
-  ZACAPA_23: {
-    id: 102,
-    sku: "RON-ZAC23-C06",
-    name: "Ron Zacapa Centenario 23 Solera Gran Reserva",
-    category: "Ron",
-    stockCases: 25,
-    bottlesPerCase: 6,
-  },
-  DON_JULIO_REPO: {
-    id: 103,
-    sku: "TEQ-DJUL-REP-C06",
-    name: "Tequila Don Julio Reposado",
-    category: "Tequila",
-    stockCases: 15,
-    bottlesPerCase: 6,
-  },
-  ANTIOQUENO_AZUL: {
-    id: 104,
-    sku: "AGU-ANT-AZU-C12",
-    name: "Aguardiente Antioqueño Tapa Azul Sin Azúcar",
-    category: "Aguardiente",
-    stockCases: 100,
-    bottlesPerCase: 12,
-  },
-};
-
-/**
- * Matriz Canónica de Precios Escalonados
- */
-export const FIXTURE_PRICES: CanonicalPriceFixture[] = [
-  // Buchanan's 12 - RETAIL (Precio Plano)
-  { id: 1, productId: 101, customerType: "RETAIL", minCases: 1, unitPrice: 1850000 },
-
-  // Buchanan's 12 - INDUSTRIAL (Escalonado por Volumen)
-  { id: 2, productId: 101, customerType: "INDUSTRIAL", minCases: 1, unitPrice: 1650000 },
-  { id: 3, productId: 101, customerType: "INDUSTRIAL", minCases: 5, unitPrice: 1550000 },
-  { id: 4, productId: 101, customerType: "INDUSTRIAL", minCases: 10, unitPrice: 1480000 },
-
-  // Ron Zacapa 23 - RETAIL
-  { id: 5, productId: 102, customerType: "RETAIL", minCases: 1, unitPrice: 1420000 },
-
-  // Ron Zacapa 23 - INDUSTRIAL
-  { id: 6, productId: 102, customerType: "INDUSTRIAL", minCases: 1, unitPrice: 1300000 },
-  { id: 7, productId: 102, customerType: "INDUSTRIAL", minCases: 3, unitPrice: 1220000 },
-
-  // Don Julio Reposado - SOLO RETAIL (Para probar fallo por segmento sin precio)
-  { id: 8, productId: 103, customerType: "RETAIL", minCases: 1, unitPrice: 1750000 },
+export const TEST_USERS = [
+  { id: 1, email: "cliente@barpoblado.com", name: "Bar Poblado SAS", role: "CUSTOMER", passwordHash: "dummy" },
+  { id: 2, email: "supervisor@licores.com", name: "Supervisor Despachos", role: "SUPERVISOR", passwordHash: "dummy" },
+  { id: 3, email: "admin@licores.com", name: "Administrador General", role: "ADMIN", passwordHash: "dummy" },
 ];
 
-/**
- * Configuración Operativa Canónica (SystemConfig)
- */
-export const FIXTURE_SYSTEM_CONFIG = {
-  logistics_min_cases_standard: { key: "logistics_min_cases_standard", value: 3, type: "NUMBER" },
-  logistics_min_cases_express: { key: "logistics_min_cases_express", value: 1, type: "NUMBER" },
-  logistics_express_fee_cop: { key: "logistics_express_fee_cop", value: 35000, type: "NUMBER" },
-  logistics_express_reschedule_discount_cop: { key: "logistics_express_reschedule_discount_cop", value: 10000, type: "NUMBER" },
-  logistics_express_enabled: { key: "logistics_express_enabled", value: true, type: "BOOLEAN" },
-  payment_cod_enabled: { key: "payment_cod_enabled", value: true, type: "BOOLEAN" },
-  payment_bank_transfer_enabled: { key: "payment_bank_transfer_enabled", value: true, type: "BOOLEAN" },
-  payment_credit_card_enabled: { key: "payment_credit_card_enabled", value: true, type: "BOOLEAN" },
-};
+export const TEST_CUSTOMERS = [
+  { id: 1, userId: 1, businessName: "Bar El Templo SAS", taxId: "901234567-1", customerType: "INDUSTRIAL", phone: "3001234567" },
+];
+
+export const TEST_DELIVERY_PLACES = [
+  { id: 10, customerId: 1, name: "Sede Poblado Principal", address: "Cra 43A # 10-25", city: "Medellín", phone: "3001234567" },
+];
+
+export const TEST_PRODUCTS = [
+  { id: 101, sku: "WHI-BUCH12-C12", name: "Whisky Buchanan's 12 Años", category: "Whisky", stockCases: 50, bottlesPerCase: 12 },
+  { id: 102, sku: "RON-ZAC23-C06", name: "Ron Zacapa 23", category: "Ron", stockCases: 2, bottlesPerCase: 6 },
+];
+
+export const TEST_PRODUCT_PRICES = [
+  { id: 1, productId: 101, customerType: "RETAIL", minCases: 1, unitPrice: 150000 },
+  { id: 2, productId: 101, customerType: "INDUSTRIAL", minCases: 1, unitPrice: 130000 },
+  { id: 3, productId: 101, customerType: "INDUSTRIAL", minCases: 5, unitPrice: 120000 },
+  { id: 4, productId: 102, customerType: "INDUSTRIAL", minCases: 1, unitPrice: 140000 },
+];
+
+export const TEST_SYSTEM_CONFIG = [
+  { key: "logistics_min_cases_standard", value: "3", type: "NUMBER" },
+  { key: "logistics_min_cases_express", value: "1", type: "NUMBER" },
+  { key: "logistics_express_fee_cop", value: "35000", type: "NUMBER" },
+  { key: "logistics_express_reschedule_discount_cop", value: "10000", type: "NUMBER" },
+  { key: "logistics_express_enabled", value: "true", type: "BOOLEAN" },
+  { key: "payment_cod_enabled", value: "true", type: "BOOLEAN" },
+  { key: "payment_bank_transfer_enabled", value: "true", type: "BOOLEAN" },
+  { key: "payment_credit_card_enabled", value: "true", type: "BOOLEAN" },
+];
 ```
 
 ---
 
-## 7. Matriz de Trazabilidad de Requisitos (RTM)
+## 7. Matriz de Trazabilidad de Requisitos (RTM Unificada)
 
-La siguiente tabla traza de extremo a extremo cada acápite de la [`TECHNICAL_SPECIFICATION.md`](file:///C:/_code/licores-crm/TECHNICAL_SPECIFICATION.md) con la regla implementada, el escenario Gherkin formulado y su test unitario en [`server/tests/unit/order.rules.test.ts`](file:///C:/_code/licores-crm/server/tests/unit/order.rules.test.ts):
-
-| Cláusula Especificación Técnica | Regla en `order.rules.ts` | ID Escenario Gherkin | Nombre del Test en Vitest (`server/tests/unit/order.rules.test.ts`) | Estado de Cobertura |
-| :--- | :--- | :--- | :--- | :--- |
-| **Secc 1.2 / Secc 3 (Regla I):** Unidad de medida en cajas cerradas y MOQ | `validateMinimumOrderQuantity()` | `SCN-MOQ-01` a `SCN-MOQ-04` | `debe permitir pedido estándar cuando alcanza o supera el MOQ configurado...` | :white_check_mark: Cubierto (100%) |
-| **Secc 4.1:** Logística Dual, SLA y MOQ express nocturno | `validateMinimumOrderQuantity()` | `SCN-MOQ-05` a `SCN-MOQ-07` | `debe permitir pedido express nocturno con 1 o más cajas / rechazar con 0` | :white_check_mark: Cubierto (100%) |
-| **Secc 4.1 / Secc 7:** Parámetros dinámicos de MOQ en SystemConfig | `validateMinimumOrderQuantity(..., minStd, minExp)` | `SCN-MOQ-08`, `SCN-MOQ-09` | `debe respetar los parámetros dinámicos de MOQ provenientes de SystemConfig` | :white_check_mark: Cubierto (100%) |
-| **Secc 4.1:** Costo de envío estándar ($0 COP) | `calculateShippingFee()` | `SCN-SHP-01`, `SCN-SHP-02` | `debe retornar flete de 0 COP para despacho estándar` | :white_check_mark: Cubierto (100%) |
-| **Secc 4.1 / Secc 7:** Recargo express nocturno ($35.000 COP y configurable) | `calculateShippingFee(..., feeCop)` | `SCN-SHP-03`, `SCN-SHP-04` | `debe retornar 35.000 COP para despacho express... / respetar valor dinámico` | :white_check_mark: Cubierto (100%) |
-| **Secc 2.1.E / Secc 3 (Regla II):** Matriz de precios por volumen y segmento | `resolveTieredUnitPrice()` | `SCN-PRC-01` a `SCN-PRC-06` | `debe aplicar precio base para RETAIL... / escalones correctos para INDUSTRIAL` | :white_check_mark: Cubierto (100%) |
-| **Secc 3 (Regla II):** Aislamiento de segmentos y fallo por catálogo sin tarifa | `resolveTieredUnitPrice()` | `SCN-PRC-07` | `debe lanzar un error si no existen precios para el tipo de cliente` | :white_check_mark: Cubierto (100%) |
-| **Secc 2.3.1:** Patrón de código de orden `ORD-YYMM-XXXX` (Crockford Base32) | `generateOrderCode()` | `SCN-COD-01`, `SCN-COD-02` | `debe generar un código con el formato ORD-YYMM-XXXX usando Crockford Base32` | :white_check_mark: Cubierto (100%) |
-| **Secc 2.3.1:** Exclusión de caracteres ambiguos (I, L, O, U, 0, 1) | `generateOrderCode()` | `SCN-COD-02` | `no debe contener caracteres ambiguos excluidos de Crockford Base32...` | :white_check_mark: Cubierto (100%) |
-| **Secc 5.2 / Secc 7:** Mapeo de métodos de pago a SystemConfig | `getPaymentMethodConfigKey()` | `SCN-PAY-01` | `debe mapear correctamente los métodos de pago a sus claves de SystemConfig` | :white_check_mark: Cubierto (100%) |
-| **Secc 5.2 / Secc 7:** Validación de pasarelas de pago habilitadas / deshabilitadas | `validatePaymentMethodActive()` | `SCN-PAY-02` a `SCN-PAY-05` | `debe permitir métodos activos / rechazar métodos desactivados con mensaje...` | :white_check_mark: Cubierto (100%) |
+| Cláusula Técnica | Componente / Costura | ID Escenario Gherkin | Nombre del Test / Escenario | Nivel | Responsable |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Secc 1.2 / 3 (Regla I):** MOQ estándar y cajas cerradas | `order.rules.ts` | `SCN-PRIO-U1` | Validación de MOQ Dinámico (STANDARD vs EXPRESS) | Unit | **Agente 2 (Prioritario)** |
+| **Secc 2.1.E / 3 (Regla II):** Precios por volumen y segmento | `order.rules.ts` | `SCN-PRIO-U2` | Resolución de precios unitarios escalonados | Unit | **Agente 2 (Prioritario)** |
+| **Secc 4.1:** Costo flete estándar $0 y express $35.000 | `order.rules.ts` | `SCN-SHP-01..02` | Cálculo de flete según modalidad | Unit | Usuario (Complementario) |
+| **Secc 2.3.1:** Código Crockford Base32 inconfundible | `order.rules.ts` | `SCN-COD-01..02` | Generación y exclusión de caracteres confusos | Unit | Usuario (Complementario) |
+| **Secc 5.2 / 7:** Pasarelas de pago y SystemConfig | `order.rules.ts` | `SCN-PAY-01` | Validación de pasarela activa en SystemConfig | Unit | Usuario (Complementario) |
+| **Secc 3 (Regla IV):** Descuento atómico de stock y snapshot | `OrderService.checkout` | `SCN-PRIO-I1` | Checkout transaccional con descuento de stock y snapshot | Integration | **Agente 2 (Prioritario)** |
+| **Secc 4.2:** Protocolo reprogramación express (-$10.000 COP) | `OrderService.reschedule` | `SCN-PRIO-I2` | Reprogramación express con compensación y nota | Integration | **Agente 2 (Prioritario)** |
+| **Secc 3 (Regla IV / V):** Cancelación y reintegro de stock | `OrderService.cancel` | `SCN-INT-CAN-01` | Reintegro automático de stock y notificación | Integration | Usuario (Complementario) |
+| **Secc 1.2 / 4.1:** Simulación dinámica de carrito | `OrderService.calculateCart` | `SCN-INT-CRT-01` | Cálculo de carrito con parámetros SystemConfig | Integration | Usuario (Complementario) |
+| **Secc 7:** Lectura tipada y actualización de parámetros | `SystemConfigService` | `SCN-INT-CFG-01..02` | Lectura tipada con fallback y actualización validada | Integration | Usuario (Complementario) |
+| **Secc 6.1 / IAM:** Autenticación y roles en Checkout | `POST /checkout` | `SCN-PRIO-A1` | Matriz de seguridad en checkout (401, 403, 201) | API | **Agente 2 (Prioritario)** |
+| **Secc 4.2 / IAM:** RBAC exclusivo para reprogramar express | `POST /:id/reschedule` | `SCN-PRIO-A2` | Autorización exclusiva ADMIN/SUPERVISOR (403 vs 200) | API | **Agente 2 (Prioritario)** |
+| **Secc 6.1:** Carrito anónimo vs autenticado | `POST /calculate-cart` | `SCN-API-CRT-01..02` | optionalAuthMiddleware: acceso público vs mayorista | API | Usuario (Complementario) |
+| **Secc 7 / IAM:** Protección RBAC de SystemConfig | `GET/PUT /config` | `SCN-API-CFG-01..02` | GET (ADMIN/SUPERVISOR) vs PUT (Solo ADMIN) | API | Usuario (Complementario) |
 
 ---
 
-## 8. Definición de Hecho (DoD - Definition of Done) para la Suite de Pruebas
+## 8. Definición de Hecho (DoD - Definition of Done)
 
-Para considerar que la Fase 1 de pruebas está **100% Completada y Aprobada para Producción**, la suite de pruebas unitarias (`server/tests/unit/order.rules.test.ts`) debe cumplir de forma rigurosa los siguientes criterios:
+Para declarar aprobada la suite de pruebas del backend en sus Fases 1, 2 y 3:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        CRITERIOS DE ACEPTACIÓN (DoD)                   │
 └────────────────────────────────────────────────────────────────────────┘
  [✓] 1. 100% de Pruebas en Verde (0 Fallos, 0 Saltos / Skips no justificados).
- [✓] 2. 0 Errores del Compilador TypeScript (`tsc --noEmit` limpio).
- [✓] 3. Tiempo de Ejecución Ultra-rápido: Suite completa ejecutada en < 500 ms.
+ [✓] 2. 0 Errores del Compilador TypeScript (`tsc --noEmit` sin errores).
+ [✓] 3. Tiempo de Ejecución Eficiente:
+      • Fase 1 (Unit):        < 500 ms (típicamente < 50 ms).
+      • Fase 2 (Integration): < 3.000 ms sobre base de datos SQLite en disco/memoria.
+      • Fase 3 (API):         < 5.000 ms ejecutando sobre Express + Supertest.
  [✓] 4. Cobertura de Código Mínima:
-      • Branch Coverage:   100% en `order.rules.ts`.
-      • Statement/Line:    100% en `order.rules.ts`.
-      • Function Coverage: 100% en `order.rules.ts`.
- [✓] 5. Ubicación Estándar: Archivo suite en `server/tests/unit/order.rules.test.ts`.
- [✓] 6. Aislamiento Total: 0 llamadas de red, 0 accesos a SQLite, 0 I/O de disco.
- [✓] 7. Determinismo Absoluto: Concurrencia segura (`concurrent: true`), sin carreras.
- [✓] 8. Validaciones Negativas Robustas: Cada excepción esperada debe verificar
-      tanto el lanzamiento del error como la coincidencia estricta de su mensaje.
+      • Fase 1: 100% Branch, Statement y Function en `order.rules.ts`.
+      • Fase 2: 100% de los flujos críticos de stock, compensación y estados de `OrderService`.
+      • Fase 3: Cobertura de los códigos de respuesta clave (401, 403, 200, 201, 400).
+ [✓] 5. Aislamiento Total de Persistencia:
+      • Las pruebas de Fase 2 y 3 NUNCA tocan `server/data.db` de producción o desarrollo.
+      • Operan exclusivamente sobre `server/data.test.db` o base SQLite en memoria.
+ [✓] 6. Determinismo y Teardown Limpio:
+      • Los tests pueden correr en cualquier orden sin depender del estado de tests previos.
+      • `afterAll` cierra conexiones y desinfecta archivos residuales (`-wal`, `-shm`).
 ```
 
 ---
 
-## 9. Política de Aislamiento de Base de Datos para Fases Posteriores
+## 9. Política de Aislamiento de Base de Datos para Integración (`data.test.db`)
 
-Aunque la **Fase 1** opera sobre dominio puro en memoria, esta especificación establece la política estricta de aislamiento de persistencia para la inminente **Fase 2 (Pruebas de Integración y Servicios)**:
+Para las suites de integración y API (Fases 2 y 3), se establece la siguiente política obligatoria:
 
-### 9.1. Segregación de Archivos de Base de Datos
-* **Ambiente de Desarrollo:** `server/data.db` (utilizado exclusivamente en modo dev).
-* **Ambiente de Pruebas Automatizadas:** `server/data.test.db` (o base de datos SQLite en memoria `:memory:` mediante `node:sqlite`).
-* **Protección de Entorno:**
-  * El runner de pruebas forzará la variable de entorno `NODE_ENV=test`.
-  * Cualquier intento de inicializar la conexión en modo test contra `data.db` abortará de inmediato el proceso.
+### 9.1. Segregación de Archivos y Variables de Entorno
+* **Ruta de Base de Datos de Prueba:** `server/data.test.db` (desconectada de `server/data.db`).
+* **Variable de Entorno Obligatoria:** `NODE_ENV=test`.
+* **Guardrail de Conexión:** Si el código detecta `NODE_ENV=test` e intenta conectarse a `data.db`, el proceso arrojará un error fatal de configuración.
 
-### 9.2. Ciclo de Vida y Teardown de Datos de Prueba (Sandbox State)
-1. **Fase Pre-Suite (`beforeAll`):**
-   * Creación limpia del esquema relacional completo aplicando las migraciones de Drizzle ORM sobre la base de datos de pruebas.
-   * Carga de semillas base controladas (`fixtures dummy`).
-2. **Fase Entre Pruebas (`beforeEach` / `afterEach`):**
-   * Cada prueba de integración debe ejecutarse dentro de una transacción aislada o limpiar las tablas transaccionales (`orders`, `order_items`) al finalizar.
-   * Los productos y parámetros de `system_config` deben restablecerse a su estado canónico al concluir cada test para evitar la contaminación cruzada entre pruebas (Test State Bleeding).
-3. **Fase Post-Suite (`afterAll`):**
-   * Cierre seguro de todas las conexiones activas al motor SQLite.
-   * Eliminación física del archivo temporal `data.test.db` y sus archivos auxiliares (`-wal`, `-shm`) para garantizar un entorno estéril y reproducibilidad idéntica en pipelines de CI/CD.
+### 9.2. Ciclo de Vida de los Datos (Setup, Teardown y Seeding)
+1. **`beforeAll`:**
+   * Inicialización de la base de datos `data.test.db`.
+   * Ejecución de migraciones o creación de tablas relacionales de Drizzle ORM.
+   * Carga de semillas base de prueba (`TEST_USERS`, `TEST_CUSTOMERS`, `TEST_DELIVERY_PLACES`, `TEST_PRODUCTS`, `TEST_PRODUCT_PRICES`, `TEST_SYSTEM_CONFIG`).
+2. **`beforeEach` / `afterEach`:**
+   * Las tablas transaccionales (`orders`, `order_items`) se limpian o se gestionan en transacciones aisladas.
+   * Se restablece el inventario de `TEST_PRODUCTS` a sus valores canónicos (ej. 50 cajas para Buchanan's 12) para evitar que una prueba de checkout agote el stock de la prueba siguiente.
+3. **`afterAll`:**
+   * Cierre formal de la base de datos `node:sqlite`.
+   * Limpieza de archivos temporales de base de datos de test (`data.test.db`, `data.test.db-wal`, `data.test.db-shm`).
 
 ---
 
-*Documento Maestro compilado por el Agente 1 (Testing Documentation Architect).*  
-*Cualquier modificación a las reglas aquí descritas requiere una enmienda formal a la especificación técnica.*
+*Documento Maestro unificado y compilado por el Agente 1 (Testing Documentation Architect).*  
+*Aprobado para la implementación de pruebas unitarias, de integración y de contratos API.*
