@@ -27,7 +27,14 @@ Thumbs.db
 .vscode/
 .idea/
 .Rhistory
-graphify-out/
+# Documentation
+docs/
+README.md
 
-# Local specifications
-TECHNICAL_SPECIFICATION.md
+# Agent & AI Tooling
+.agents/
+.agent/
+skills/
+.claude/
+.impeccable/
+graphify-out/
